@@ -46,7 +46,6 @@ local EntityESPState = {
     Color = Color3.new(0, 1, 1),
 }
 
--- Отдельные списки для руды и ящиков
 local SelectedNodes = {
     ["Stone_Node"] = true,
     ["Metal_Node"] = true,
@@ -143,17 +142,24 @@ local function UpdatePlayerESP()
                     local o = PlayerObjects[char]
                     local boxHeight = math.abs(screenPos.Y - headPos.Y)
                     local boxWidth = boxHeight / 2
+                    
+                    local minHeight = 25
+                    local minWidth = 12
+                    if boxHeight < minHeight then
+                        boxHeight = minHeight
+                        boxWidth = minWidth
+                    end
 
                     o.Box.Visible = PlayerESPState.ShowBox
                     o.Box.Color = PlayerESPState.Color
                     o.Box.Size = Vector2.new(boxWidth, boxHeight)
-                    o.Box.Position = Vector2.new(screenPos.X - boxWidth/2, headPos.Y)
+                    o.Box.Position = Vector2.new(screenPos.X - (boxWidth / 2), headPos.Y)
 
                     o.HealthBar.Visible = PlayerESPState.ShowHealth
                     local barH = (hum.Health / hum.MaxHealth) * boxHeight
                     o.HealthBar.Color = Color3.new(1 - (hum.Health/hum.MaxHealth), (hum.Health/hum.MaxHealth), 0)
                     o.HealthBar.Size = Vector2.new(2, barH)
-                    o.HealthBar.Position = Vector2.new(screenPos.X - boxWidth/2 - 4, headPos.Y + (boxHeight - barH))
+                    o.HealthBar.Position = Vector2.new(screenPos.X - (boxWidth / 2) - 4, headPos.Y + (boxHeight - barH))
 
                     o.NameText.Visible = PlayerESPState.ShowNames
                     o.NameText.Color = PlayerESPState.Color
