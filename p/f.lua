@@ -55,6 +55,7 @@ local SilentAimState = {
     FOV = 150,
     VisibleCheck = false,
     TargetNPCs = false,
+    DrawFOV = false,
 }
 
 local SelectedNodes = {
@@ -74,6 +75,7 @@ local SelectedCrates = {
 
 local PlayerObjects = {}
 local EntityObjects = {}
+local FOVCircle = nil
 
 local function CreateObject(className, properties)
     local obj = Drawing.new(className)
@@ -317,6 +319,35 @@ local function GetClosestTarget()
     return closest
 end
 
+local function UpdateFOV()
+    if not SilentAimState.DrawFOV then
+        if FOVCircle then
+            FOVCircle.Visible = false
+        end
+        return
+    end
+
+    if not FOVCircle then
+        FOVCircle = CreateObject("Circle", {
+            Thickness = 1,
+            NumSides = 60,
+            Filled = false,
+            Transparency = 0.5,
+        })
+    end
+
+    FOVCircle.Visible = true
+    FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+    FOVCircle.Radius = SilentAimState.FOV
+
+    local target = GetClosestTarget()
+    if target then
+        FOVCircle.Color = Color3.new(0, 0, 1)
+    else
+        FOVCircle.Color = Color3.new(1, 1, 1)
+    end
+end
+
 local oldIndex
 oldIndex = hookmetamethod(game, "__index", function(t, k)
     if not checkcaller() and t == LocalPlayer and k == "GetMouse" then
@@ -335,6 +366,7 @@ end)
 RunService.RenderStepped:Connect(function()
     UpdatePlayerESP()
     UpdateEntityESP()
+    UpdateFOV()
 end)
 
 PlayerGroup:AddToggle("PlayerEsp", { Text = "Enable Player ESP", Default = false, Callback = function(v) PlayerESPState.Enabled = v end })
@@ -373,6 +405,7 @@ CrateGroup:AddToggle("CrateLockedWood", { Text = "Locked Wooden Crate", Default 
 CrateGroup:AddToggle("CrateBodyBag", { Text = "Body Bag", Default = true, Callback = function(v) SelectedCrates["Body Bag"] = v end })
 
 SilentAimGroup:AddToggle("SilentAim", { Text = "Enable Silent Aim", Default = false, Callback = function(v) SilentAimState.Enabled = v end })
+SilentAimGroup:AddToggle("DrawFOV", { Text = "Draw FOV", Default = false, Callback = function(v) SilentAimState.DrawFOV = v end })
 SilentAimGroup:AddDropdown("AimPart", {
     Text = "Target Part",
     Values = {"Head", "HumanoidRootPart", "UpperTorso", "Torso", "LowerTorso"},
