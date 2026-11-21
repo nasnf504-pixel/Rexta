@@ -15,7 +15,7 @@ local Tabs = {
 }
 
 local PlayerGroup = Tabs.Visuals:AddLeftGroupbox("Players")
-local EntityGroup = Tabs.Visuals:AddLeftGroupbox("Entities")
+local EntityGroup = Tabs.Visuals:AddRightGroupbox("Entities")
 
 local Workspace = cloneref and cloneref(workspace) or workspace
 local Players = cloneref and cloneref(game:GetService("Players")) or game:GetService("Players")
@@ -37,22 +37,22 @@ local PlayerESPState = {
     Color = Color3.new(1, 0, 0),
 }
 
--- Реальные имена объектов из игры
 local EntityESPState = {
     Enabled = false,
     ShowNames = true,
     ShowDistance = true,
     MaxDistance = 1500,
     Color = Color3.new(0, 1, 1),
-    Items = {
-        ["Stone_Node"] = true,
-        ["Metal_Node"] = true,
-        ["Phosphate_Node"] = true,
-        ["Weapon Crate"] = true,
-        ["Airdrop"] = true,
-        ["Timed Crate"] = true,
-        ["Body Bag"] = true,
-    }
+}
+
+local SelectedEntities = {
+    ["Stone_Node"] = true,
+    ["Metal_Node"] = true,
+    ["Phosphate_Node"] = true,
+    ["Weapon Crate"] = true,
+    ["Airdrop"] = true,
+    ["Timed Crate"] = true,
+    ["Body Bag"] = true,
 }
 
 local PlayerObjects = {}
@@ -212,15 +212,10 @@ local function UpdateEntityESP()
 
     local visibleEnts = {}
     for _, ent in pairs(activeEnts) do
-        local isTarget = false
         local objName = ent.obj.Name
-        
-        -- Теперь проверяем ТОЧНОЕ совпадение с ключом в таблице
-        if EntityESPState.Items[objName] then
-            isTarget = true
+        if SelectedEntities[objName] then
+            table.insert(visibleEnts, ent)
         end
-        
-        if isTarget then table.insert(visibleEnts, ent) end
     end
 
     for obj, data in pairs(EntityObjects) do
@@ -296,19 +291,12 @@ EntityGroup:AddLabel("Entity Color"):AddColorPicker("EntColor", {
     Callback = function(v) EntityESPState.Color = v end
 })
 
-EntityGroup:AddDropdown("EntItemsDropdown", {
-    Text = "Select Items",
-    Values = {"Stone_Node", "Metal_Node", "Phosphate_Node", "Weapon Crate", "Airdrop", "Timed Crate", "Body Bag"},
-    Default = {"Stone_Node", "Metal_Node", "Phosphate_Node", "Weapon Crate", "Airdrop", "Timed Crate", "Body Bag"},
-    Multi = true,
-    Callback = function(Values)
-        for k, v in pairs(EntityESPState.Items) do
-            EntityESPState.Items[k] = false
-        end
-        for _, v in pairs(Values) do
-            if EntityESPState.Items[v] ~= nil then
-                EntityESPState.Items[v] = true
-            end
-        end
-    end
-})
+EntityGroup:AddDivider()
+
+EntityGroup:AddToggle("EntStone", { Text = "Stone Node", Default = true, Callback = function(v) SelectedEntities["Stone_Node"] = v end })
+EntityGroup:AddToggle("EntMetal", { Text = "Metal Node", Default = true, Callback = function(v) SelectedEntities["Metal_Node"] = v end })
+EntityGroup:AddToggle("EntPhosphate", { Text = "Phosphate Node", Default = true, Callback = function(v) SelectedEntities["Phosphate_Node"] = v end })
+EntityGroup:AddToggle("EntWeaponCrate", { Text = "Weapon Crate", Default = true, Callback = function(v) SelectedEntities["Weapon Crate"] = v end })
+EntityGroup:AddToggle("EntAirdrop", { Text = "Airdrop", Default = true, Callback = function(v) SelectedEntities["Airdrop"] = v end })
+EntityGroup:AddToggle("EntTimedCrate", { Text = "Timed Crate", Default = true, Callback = function(v) SelectedEntities["Timed Crate"] = v end })
+EntityGroup:AddToggle("EntBodyBag", { Text = "Body Bag", Default = true, Callback = function(v) SelectedEntities["Body Bag"] = v end })
