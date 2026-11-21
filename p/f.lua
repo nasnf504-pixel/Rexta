@@ -14,7 +14,6 @@ local Tabs = {
     Settings = Window:AddTab("Settings", "settings"),
 }
 
--- Вот тут создаём группу, внутри которой будут кнопки
 local ESPGroup = Tabs.Visuals:AddLeftGroupbox("ESP")
 
 local Workspace = cloneref and cloneref(workspace) or workspace
@@ -35,130 +34,162 @@ local ESPState = {
     Color = Color3.new(1, 0, 0),
 }
 
-local ActiveDrawings = {}
+local ESPObjects = {}
 
-local function Cleanup()
-    for _, obj in pairs(ActiveDrawings) do
-        pcall(function() obj:Remove() end)
-    end
-    table.clear(ActiveDrawings)
-end
-
-local function CreateDrawing(class, props)
-    local obj = Drawing.new(class)
-    for k, v in pairs(props) do obj[k] = v end
+local function CreateObject(className, properties)
+    local obj = Drawing.new(className)
+    for k, v in pairs(properties) do obj[k] = v end
     return obj
 end
 
-local function IsAlive(char)
-    if not char then return false end
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    return hum and hum.Health > 0
+local function DestroyObject(obj)
+    if obj then
+        pcall(function() obj:Remove() end)
+    end
 end
 
-local function GetTargetData(obj, isPlayer)
-    local char = obj.Character or obj
+local function GetTargetData(char)
     local hrp = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("Head")
-    if not hrp then return end
-    local hum = char:FindFirstChildOfClass("Humanoid")
     local head = char:FindFirstChild("Head")
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hrp or not head or not hum then return nil end
+    if hum.Health <= 0 then return nil end
+
     local dist = (Camera.CFrame.Position - hrp.Position).Magnitude
-    if dist > ESPState.MaxDistance then return end
+    if dist > ESPState.MaxDistance then return nil end
+
     local screenPos, onScreen = WorldToViewportPoint(Camera, hrp.Position)
-    if not onScreen then return end
-    local name = isPlayer and obj.Name or (obj.Name or "NPC")
-    if head then
-        local headPos, headOnScreen = WorldToViewportPoint(Camera, head.Position + Vector3.new(0, 0.5, 0))
-        if headOnScreen then
-            local boxHeight = math.abs(screenPos.Y - headPos.Y)
-            local boxWidth = boxHeight / 2
-            return {
-                x = screenPos.X, y = screenPos.Y, headY = headPos.Y,
-                width = boxWidth, height = boxHeight, distance = dist,
-                name = name, health = hum and hum.Health or 100, maxHealth = hum and hum.MaxHealth or 100
-            }
-        end
-    end
+    local headPos, headOnScreen = WorldToViewportPoint(Camera, head.Position + Vector3.new(0, 0.5, 0))
+    
+    if not onScreen or not headOnScreen then return nil end
+
+    local boxHeight = math.abs(screenPos.Y - headPos.Y)
+    local boxWidth = boxHeight / 2
+
+    return {
+        x = screenPos.X,
+        y = screenPos.Y,
+        headY = headPos.Y,
+        width = boxWidth,
+        height = boxHeight,
+        distance = dist,
+        name = char.Name,
+        health = hum.Health,
+        maxHealth = hum.MaxHealth,
+        hum = hum,
+        char = char
+    }
 end
 
-local function Render()
-    if not ESPState.Enabled then return end
-    Cleanup()
-    local drawn = {}
+local function UpdateESP()
+    local activeTargets = {}
+
     for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer and IsAlive(plr.Character) then
-            local data = GetTargetData(plr, true)
-            if data then table.insert(drawn, data) end
+        if plr ~= LocalPlayer and plr.Character then
+            table.insert(activeTargets, plr.Character)
         end
     end
+
     local bases = Workspace:FindFirstChild("Bases")
     if bases then
         for _, base in pairs(bases:GetChildren()) do
             for _, child in pairs(base:GetChildren()) do
                 if child:FindFirstChild("Humanoid") and child:FindFirstChild("HumanoidRootPart") then
                     if not Players:GetPlayerFromCharacter(child) then
-                        local data = GetTargetData(child, false)
-                        if data then table.insert(drawn, data) end
+                        table.insert(activeTargets, child)
                     end
                 end
             end
         end
     end
+
     local military = Workspace:FindFirstChild("Military")
     if military then
         for _, child in pairs(military:GetChildren()) do
             if child:FindFirstChild("Humanoid") and child:FindFirstChild("HumanoidRootPart") then
-                local data = GetTargetData(child, false)
-                if data then table.insert(drawn, data) end
+                table.insert(activeTargets, child)
             end
         end
     end
-    for _, data in pairs(drawn) do
-        if ESPState.ShowBox then
-            local box = CreateDrawing("Square", {
-                Thickness = 1, Color = ESPState.Color, Filled = false, Visible = true
-            })
-            box.Size = Vector2.new(data.width, data.height)
-            box.Position = Vector2.new(data.x - (data.width / 2), data.headY)
-            table.insert(ActiveDrawings, box)
+
+    for char, data in pairs(ESPObjects) do
+        if not table.find(activeTargets, char) or not ESPState.Enabled then
+            DestroyObject(data.Box)
+            DestroyObject(data.HealthBar)
+            DestroyObject(data.NameText)
+            DestroyObject(data.DistanceText)
+            ESPObjects[char] = nil
         end
-        if ESPState.ShowHealth and data.maxHealth > 0 then
-            local bar = CreateDrawing("Square", {
-                Thickness = 1, Color = Color3.new(0, 1, 0), Filled = true, Visible = true
-            })
-            local barHeight = (data.health / data.maxHealth) * data.height
-            bar.Size = Vector2.new(2, barHeight)
-            bar.Position = Vector2.new(data.x - (data.width / 2) - 4, data.headY + (data.height - barHeight))
-            table.insert(ActiveDrawings, bar)
-        end
-        if ESPState.ShowNames then
-            local nameText = data.name
-            if ESPState.ShowDistance then
-                nameText = string.format("%s [%dm]", nameText, math.floor(data.distance))
+    end
+
+    if not ESPState.Enabled then return end
+
+    for _, char in pairs(activeTargets) do
+        local data = GetTargetData(char)
+        if data then
+            if not ESPObjects[char] then
+                ESPObjects[char] = {
+                    Box = CreateObject("Square", { Thickness = 1, Color = ESPState.Color, Filled = false }),
+                    HealthBar = CreateObject("Square", { Thickness = 1, Color = Color3.new(0, 1, 0), Filled = true }),
+                    NameText = CreateObject("Text", { Size = 14, Center = true, Outline = true, Color = Color3.new(1, 1, 1), Font = 2 }),
+                    DistanceText = CreateObject("Text", { Size = 12, Center = true, Outline = true, Color = Color3.new(0, 1, 0), Font = 2 })
+                }
             end
-            local text = CreateDrawing("Text", {
-                Size = 14, Center = true, Outline = true, Color = Color3.new(1, 1, 1), Visible = true, Font = 2
-            })
-            text.Text = nameText
-            text.Position = Vector2.new(data.x, data.headY - 16)
-            table.insert(ActiveDrawings, text)
+
+            local objects = ESPObjects[char]
+
+            if ESPState.ShowBox then
+                objects.Box.Visible = true
+                objects.Box.Color = ESPState.Color
+                objects.Box.Size = Vector2.new(data.width, data.height)
+                objects.Box.Position = Vector2.new(data.x - (data.width / 2), data.headY)
+            else
+                objects.Box.Visible = false
+            end
+
+            if ESPState.ShowHealth and data.maxHealth > 0 then
+                objects.HealthBar.Visible = true
+                local barHeight = (data.health / data.maxHealth) * data.height
+                objects.HealthBar.Size = Vector2.new(2, barHeight)
+                objects.HealthBar.Position = Vector2.new(data.x - (data.width / 2) - 4, data.headY + (data.height - barHeight))
+            else
+                objects.HealthBar.Visible = false
+            end
+
+            if ESPState.ShowNames then
+                objects.NameText.Visible = true
+                objects.NameText.Text = data.name
+                objects.NameText.Position = Vector2.new(data.x, data.headY - 16)
+            else
+                objects.NameText.Visible = false
+            end
+
+            if ESPState.ShowDistance then
+                objects.DistanceText.Visible = true
+                objects.DistanceText.Text = string.format("[%dm]", math.floor(data.distance))
+                objects.DistanceText.Position = Vector2.new(data.x, data.headY - 28)
+            else
+                objects.DistanceText.Visible = false
+            end
+        else
+            if ESPObjects[char] then
+                local objects = ESPObjects[char]
+                if objects.Box then objects.Box.Visible = false end
+                if objects.HealthBar then objects.HealthBar.Visible = false end
+                if objects.NameText then objects.NameText.Visible = false end
+                if objects.DistanceText then objects.DistanceText.Visible = false end
+            end
         end
     end
 end
 
-RunService.RenderStepped:Connect(function()
-    if tick() - (ESPState.LastTick or 0) > 0.06 then
-        Render()
-        ESPState.LastTick = tick()
-    end
-end)
+RunService.RenderStepped:Connect(UpdateESP)
 
 ESPGroup:AddToggle("EspToggle", {
     Text = "Enable ESP",
     Default = false,
     Callback = function(Value)
         ESPState.Enabled = Value
-        if not Value then Cleanup() end
     end
 })
 
@@ -170,11 +201,27 @@ ESPGroup:AddToggle("EspNames", {
     end
 })
 
+ESPGroup:AddToggle("EspDistance", {
+    Text = "Show Distance",
+    Default = true,
+    Callback = function(Value)
+        ESPState.ShowDistance = Value
+    end
+})
+
 ESPGroup:AddToggle("EspBox", {
     Text = "Show Boxes",
     Default = true,
     Callback = function(Value)
         ESPState.ShowBox = Value
+    end
+})
+
+ESPGroup:AddToggle("EspHealth", {
+    Text = "Show Health",
+    Default = true,
+    Callback = function(Value)
+        ESPState.ShowHealth = Value
     end
 })
 
