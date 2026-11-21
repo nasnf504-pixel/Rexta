@@ -11,6 +11,7 @@ local Window = Library:CreateWindow({
 
 local Tabs = {
     Visuals = Window:AddTab("Visuals", "eye"),
+    Settings = Window:AddTab("Settings", "settings"),
 }
 
 local Workspace = cloneref and cloneref(workspace) or workspace
@@ -19,8 +20,6 @@ local RunService = cloneref and cloneref(game:GetService("RunService")) or game:
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 local Drawing = Drawing
-local Vector2 = Vector2.new
-local Color3 = Color3.new
 local WorldToViewportPoint = Camera.WorldToViewportPoint
 
 local ESPState = {
@@ -116,8 +115,8 @@ local function Render()
             local box = CreateDrawing("Square", {
                 Thickness = 1, Color = ESPState.Color, Filled = false, Visible = true
             })
-            box.Size = Vector2(data.width, data.height)
-            box.Position = Vector2(data.x - (data.width / 2), data.headY)
+            box.Size = Vector2.new(data.width, data.height)
+            box.Position = Vector2.new(data.x - (data.width / 2), data.headY)
             table.insert(ActiveDrawings, box)
         end
         if ESPState.ShowHealth and data.maxHealth > 0 then
@@ -125,8 +124,8 @@ local function Render()
                 Thickness = 1, Color = Color3.fromRGB(0, 255, 0), Filled = true, Visible = true
             })
             local barHeight = (data.health / data.maxHealth) * data.height
-            bar.Size = Vector2(2, barHeight)
-            bar.Position = Vector2(data.x - (data.width / 2) - 4, data.headY + (data.height - barHeight))
+            bar.Size = Vector2.new(2, barHeight)
+            bar.Position = Vector2.new(data.x - (data.width / 2) - 4, data.headY + (data.height - barHeight))
             table.insert(ActiveDrawings, bar)
         end
         if ESPState.ShowNames then
@@ -138,7 +137,7 @@ local function Render()
                 Size = 14, Center = true, Outline = true, Color = Color3.fromRGB(255, 255, 255), Visible = true, Font = 2
             })
             text.Text = nameText
-            text.Position = Vector2(data.x, data.headY - 16)
+            text.Position = Vector2.new(data.x, data.headY - 16)
             table.insert(ActiveDrawings, text)
         end
     end
@@ -184,5 +183,14 @@ Tabs.Visuals:AddSlider("EspDist", {
     Rounding = 0,
     Callback = function(Value)
         ESPState.MaxDistance = Value
+    end,
+})
+
+Tabs.Visuals:AddLabel("Color Picker"):AddColorPicker("EspColor", {
+    Default = Color3.fromRGB(255, 0, 0),
+    Title = "ESP Color",
+    Transparency = 0,
+    Callback = function(Value)
+        ESPState.Color = Value
     end,
 })
