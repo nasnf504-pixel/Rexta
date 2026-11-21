@@ -280,10 +280,18 @@ PlayerGroup:AddToggle("PlayerHealth", { Text = "Show Health", Default = true, Ca
 PlayerGroup:AddToggle("PlayerTracers", { Text = "Show Tracers", Default = false, Callback = function(v) PlayerESPState.ShowTracers = v end })
 PlayerGroup:AddToggle("PlayerSkel", { Text = "Show Skeleton", Default = false, Callback = function(v) PlayerESPState.ShowSkeleton = v end })
 PlayerGroup:AddSlider("PlayerMaxDist", { Text = "Max Distance", Default = 1000, Min = 100, Max = 5000, Rounding = 0, Callback = function(v) PlayerESPState.MaxDistance = v end })
-PlayerGroup:AddColorPicker("PlayerColor", { Default = Color3.new(1, 0, 0), Title = "Player ESP Color", Callback = function(v) PlayerESPState.Color = v end })
+PlayerGroup:AddLabel("ESP Color"):AddColorPicker("PlayerColor", {
+    Default = Color3.new(1, 0, 0),
+    Title = "Player ESP Color",
+    Callback = function(v) PlayerESPState.Color = v end
+})
 
 EntityGroup:AddToggle("EntEsp", { Text = "Enable Entity ESP", Default = false, Callback = function(v) EntityESPState.Enabled = v end })
 EntityGroup:AddToggle("EntNames", { Text = "Show Names", Default = true, Callback = function(v) EntityESPState.ShowNames = v end })
 EntityGroup:AddToggle("EntDist", { Text = "Show Distance", Default = true, Callback = function(v) EntityESPState.ShowDistance = v end })
 EntityGroup:AddSlider("EntMaxDist", { Text = "Max Distance", Default = 1500, Min = 100, Max = 5000, Rounding = 0, Callback = function(v) EntityESPState.MaxDistance = v end })
-EntityGroup:AddColorPicker("EntColor", { Default = Color3.new(0, 1, 1), Title = "Entity ESP Color", Callback = function(v) EntityESPState.Color = v end })
+EntityGroup:AddLabel("Entity Color"):AddColorPicker("EntColor", {
+    Default = Color3.new(0, 1, 1),
+    Title = "Entity ESP Color",
+    Callback = function(v) EntityESPState.Color = v end
+})
