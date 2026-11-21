@@ -1,1 +1,36 @@
+local Offsets = {
+    vm = {
+        LAST_AIRED_UPVALUE = 12,
+        MOUSE_RAYCAST_CALLER_LEVEL = 2,
+        CREATE_PROJECTILE_LEVEL = 2,
+        SEATPART_CALLER_LEVEL = 3,
+        SPREAD_CALLER_LEVEL_MIN = 3,
+        SPREAD_CALLER_LEVEL_MAX = 4,
+        REGISTER_SLACK = 1,
+        SHOOT_AIMING_REGISTER = 31,
+        SHOOT_RECOIL_MULT_REGISTER = 35,
+        SHOOT_SPREAD_KEY_REGISTER = 37,
+        HEARTBEAT_ATTACHMENT_MULT_REGISTER = 52,
+        HEARTBEAT_AMMO_STATS_REGISTER = 55,
+        HEARTBEAT_AMMO_MULT_REGISTER = 56,
+        HEARTBEAT_SPREAD_KEY_REGISTER = 57,
+        HEARTBEAT_STATE_KEY_REGISTER = 65,
+    },
+    ray = {
+        MOUSE_RAYCAST_IGNORE_ARG = 3,
+        SHOOT_IGNORE_LIST_LENGTH = 2,
+        RAYCAST_FILTERS_ARG = 5,
+        RAYCAST_FILTER_FN_ARG = 7,
+    },
+    inv = {
+        EQUIP_ARMOR_HANDLER_UPVALUE = 2,
+    },
+    state = {
+        FOOTSTEP_HANDLER_UPVALUE = 1,
+    },
+    asset = {
+        BAN_TABLE_UPVALUE = 2,
+    }
+}
 
+return Offsets
