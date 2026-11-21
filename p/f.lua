@@ -14,7 +14,8 @@ local Tabs = {
     Settings = Window:AddTab("Settings", "settings"),
 }
 
-local ESPGroup = Tabs.Visuals:AddLeftGroupbox("ESP")
+local PlayerGroup = Tabs.Visuals:AddLeftGroupbox("Players")
+local EntityGroup = Tabs.Visuals:AddLeftGroupbox("Entities")
 
 local Workspace = cloneref and cloneref(workspace) or workspace
 local Players = cloneref and cloneref(game:GetService("Players")) or game:GetService("Players")
@@ -24,17 +25,39 @@ local LocalPlayer = Players.LocalPlayer
 local Drawing = Drawing
 local WorldToViewportPoint = Camera.WorldToViewportPoint
 
-local ESPState = {
+local PlayerESPState = {
     Enabled = false,
     ShowNames = true,
     ShowDistance = true,
     ShowBox = true,
     ShowHealth = true,
+    ShowTracers = true,
+    ShowSkeleton = false,
     MaxDistance = 1000,
     Color = Color3.new(1, 0, 0),
 }
 
-local ESPObjects = {}
+local EntityESPState = {
+    Enabled = false,
+    ShowNames = true,
+    ShowDistance = true,
+    MaxDistance = 1500,
+    Color = Color3.new(0, 1, 1),
+    Items = {
+        ["Weapon Crate"] = true,
+        ["Airdrop"] = true,
+        ["Timed Crate"] = true,
+        ["Body Bag"] = true,
+        ["Minicopter"] = true,
+        ["Hemp"] = true,
+        ["Metal"] = true,
+        ["Stone"] = true,
+        ["Phosphate"] = true
+    }
+}
+
+local PlayerObjects = {}
+local EntityObjects = {}
 
 local function CreateObject(className, properties)
     local obj = Drawing.new(className)
@@ -43,204 +66,226 @@ local function CreateObject(className, properties)
 end
 
 local function DestroyObject(obj)
-    if obj then
-        pcall(function() obj:Remove() end)
+    if obj then pcall(function() obj:Remove() end) end
+end
+
+local function GetBonePos(char, boneName)
+    local part = char:FindFirstChild(boneName)
+    if part then
+        local screen, onScreen = WorldToViewportPoint(Camera, part.Position)
+        if onScreen then return Vector2.new(screen.X, screen.Y) end
     end
+    return nil
 end
 
-local function GetTargetData(char)
-    local hrp = char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("Head")
-    local head = char:FindFirstChild("Head")
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if not hrp or not head or not hum then return nil end
-    if hum.Health <= 0 then return nil end
-
-    local dist = (Camera.CFrame.Position - hrp.Position).Magnitude
-    if dist > ESPState.MaxDistance then return nil end
-
-    local screenPos, onScreen = WorldToViewportPoint(Camera, hrp.Position)
-    local headPos, headOnScreen = WorldToViewportPoint(Camera, head.Position + Vector3.new(0, 0.5, 0))
-    
-    if not onScreen or not headOnScreen then return nil end
-
-    local boxHeight = math.abs(screenPos.Y - headPos.Y)
-    local boxWidth = boxHeight / 2
-
-    return {
-        x = screenPos.X,
-        y = screenPos.Y,
-        headY = headPos.Y,
-        width = boxWidth,
-        height = boxHeight,
-        distance = dist,
-        name = char.Name,
-        health = hum.Health,
-        maxHealth = hum.MaxHealth,
-        hum = hum,
-        char = char
-    }
-end
-
-local function UpdateESP()
+local function UpdatePlayerESP()
     local activeTargets = {}
-
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer and plr.Character then
             table.insert(activeTargets, plr.Character)
         end
     end
 
-    local bases = Workspace:FindFirstChild("Bases")
-    if bases then
-        for _, base in pairs(bases:GetChildren()) do
-            for _, child in pairs(base:GetChildren()) do
-                if child:FindFirstChild("Humanoid") and child:FindFirstChild("HumanoidRootPart") then
-                    if not Players:GetPlayerFromCharacter(child) then
-                        table.insert(activeTargets, child)
+    for char, data in pairs(PlayerObjects) do
+        if not table.find(activeTargets, char) or not PlayerESPState.Enabled then
+            for _, obj in pairs(data) do DestroyObject(obj) end
+            PlayerObjects[char] = nil
+        end
+    end
+
+    if not PlayerESPState.Enabled then return end
+
+    for _, char in pairs(activeTargets) do
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        local head = char:FindFirstChild("Head")
+        if hrp and hum and hum.Health > 0 and head then
+            local dist = (Camera.CFrame.Position - hrp.Position).Magnitude
+            if dist <= PlayerESPState.MaxDistance then
+                local screenPos, onScreen = WorldToViewportPoint(Camera, hrp.Position)
+                local headPos, headOnScreen = WorldToViewportPoint(Camera, head.Position + Vector3.new(0, 0.5, 0))
+                
+                if onScreen and headOnScreen then
+                    if not PlayerObjects[char] then
+                        PlayerObjects[char] = {
+                            Box = CreateObject("Square", { Thickness = 1, Filled = false }),
+                            HealthBar = CreateObject("Square", { Thickness = 1, Filled = true }),
+                            NameText = CreateObject("Text", { Size = 14, Center = true, Outline = true, Font = 2 }),
+                            DistText = CreateObject("Text", { Size = 12, Center = true, Outline = true, Font = 2 }),
+                            Tracer = CreateObject("Line", { Thickness = 1 }),
+                            SkelHead = CreateObject("Line", { Thickness = 1 }),
+                            SkelTorso = CreateObject("Line", { Thickness = 1 }),
+                            SkelL1 = CreateObject("Line", { Thickness = 1 }),
+                            SkelL2 = CreateObject("Line", { Thickness = 1 }),
+                            SkelR1 = CreateObject("Line", { Thickness = 1 }),
+                            SkelR2 = CreateObject("Line", { Thickness = 1 }),
+                        }
+                    end
+
+                    local o = PlayerObjects[char]
+                    local boxHeight = math.abs(screenPos.Y - headPos.Y)
+                    local boxWidth = boxHeight / 2
+
+                    o.Box.Visible = PlayerESPState.ShowBox
+                    o.Box.Color = PlayerESPState.Color
+                    o.Box.Size = Vector2.new(boxWidth, boxHeight)
+                    o.Box.Position = Vector2.new(screenPos.X - boxWidth/2, headPos.Y)
+
+                    o.HealthBar.Visible = PlayerESPState.ShowHealth
+                    local barH = (hum.Health / hum.MaxHealth) * boxHeight
+                    o.HealthBar.Color = Color3.new(1 - (hum.Health/hum.MaxHealth), (hum.Health/hum.MaxHealth), 0)
+                    o.HealthBar.Size = Vector2.new(2, barH)
+                    o.HealthBar.Position = Vector2.new(screenPos.X - boxWidth/2 - 4, headPos.Y + (boxHeight - barH))
+
+                    o.NameText.Visible = PlayerESPState.ShowNames
+                    o.NameText.Color = PlayerESPState.Color
+                    o.NameText.Text = char.Name
+                    o.NameText.Position = Vector2.new(screenPos.X, headPos.Y - 16)
+
+                    o.DistText.Visible = PlayerESPState.ShowDistance
+                    o.DistText.Color = Color3.new(1,1,1)
+                    o.DistText.Text = string.format("[%dm]", math.floor(dist))
+                    o.DistText.Position = Vector2.new(screenPos.X, headPos.Y - 28)
+
+                    o.Tracer.Visible = PlayerESPState.ShowTracers
+                    o.Tracer.Color = PlayerESPState.Color
+                    o.Tracer.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                    o.Tracer.To = Vector2.new(screenPos.X, screenPos.Y)
+
+                    -- Skeleton
+                    local skelVisible = PlayerESPState.ShowSkeleton
+                    for _, skel in pairs({o.SkelHead, o.SkelTorso, o.SkelL1, o.SkelL2, o.SkelR1, o.SkelR2}) do
+                        skel.Visible = skelVisible
+                        skel.Color = PlayerESPState.Color
+                    end
+
+                    if skelVisible then
+                        local h = GetBonePos(char, "Head")
+                        local t = GetBonePos(char, "UpperTorso") or GetBonePos(char, "Torso")
+                        local la = GetBonePos(char, "LeftUpperArm") or GetBonePos(char, "Left Arm")
+                        local ra = GetBonePos(char, "RightUpperArm") or GetBonePos(char, "Right Arm")
+                        local ll = GetBonePos(char, "LeftLowerArm") or GetBonePos(char, "Left Arm")
+                        local rl = GetBonePos(char, "RightLowerArm") or GetBonePos(char, "Right Arm")
+
+                        if h and t then o.SkelHead.From = h; o.SkelHead.To = t end
+                        if la and t then o.SkelTorso.From = t; o.SkelTorso.To = la end
+                        if la and ll then o.SkelL1.From = la; o.SkelL1.To = ll end
+                        if ra and t then o.SkelR1.From = t; o.SkelR1.To = ra end
+                        if ra and rl then o.SkelR2.From = ra; o.SkelR2.To = rl end
+                    end
+                else
+                    if PlayerObjects[char] then
+                        for _, obj in pairs(PlayerObjects[char]) do obj.Visible = false end
+                    end
+                end
+            else
+                if PlayerObjects[char] then
+                    for _, obj in pairs(PlayerObjects[char]) do obj.Visible = false end
+                end
+            end
+        end
+    end
+end
+
+local function UpdateEntityESP()
+    local activeEnts = {}
+    local containers = {Workspace:FindFirstChild("Drops"), Workspace:FindFirstChild("Nodes")}
+    
+    for _, container in pairs(containers) do
+        if container then
+            for _, child in pairs(container:GetChildren()) do
+                if child:IsA("Model") or child:IsA("Part") then
+                    local root = child:FindFirstChild("HumanoidRootPart") or (child:IsA("Part") and child) or child:FindFirstChildWhichIsA("BasePart")
+                    if root then
+                        table.insert(activeEnts, {obj = child, root = root})
                     end
                 end
             end
         end
     end
 
-    local military = Workspace:FindFirstChild("Military")
-    if military then
-        for _, child in pairs(military:GetChildren()) do
-            if child:FindFirstChild("Humanoid") and child:FindFirstChild("HumanoidRootPart") then
-                table.insert(activeTargets, child)
+    local visibleEnts = {}
+    for _, ent in pairs(activeEnts) do
+        local isTarget = false
+        for name, _ in pairs(EntityESPState.Items) do
+            if string.find(string.lower(ent.obj.Name), string.lower(name)) then
+                isTarget = true
+                break
             end
+        end
+        if isTarget then table.insert(visibleEnts, ent) end
+    end
+
+    for obj, data in pairs(EntityObjects) do
+        local found = false
+        for _, ent in pairs(visibleEnts) do if ent.obj == obj then found = true break end end
+        if not found or not EntityESPState.Enabled then
+            DestroyObject(data.Text)
+            EntityObjects[obj] = nil
         end
     end
 
-    for char, data in pairs(ESPObjects) do
-        if not table.find(activeTargets, char) or not ESPState.Enabled then
-            DestroyObject(data.Box)
-            DestroyObject(data.HealthBar)
-            DestroyObject(data.NameText)
-            DestroyObject(data.DistanceText)
-            ESPObjects[char] = nil
-        end
-    end
+    if not EntityESPState.Enabled then return end
 
-    if not ESPState.Enabled then return end
-
-    for _, char in pairs(activeTargets) do
-        local data = GetTargetData(char)
-        if data then
-            if not ESPObjects[char] then
-                ESPObjects[char] = {
-                    Box = CreateObject("Square", { Thickness = 1, Color = ESPState.Color, Filled = false }),
-                    HealthBar = CreateObject("Square", { Thickness = 1, Color = Color3.new(0, 1, 0), Filled = true }),
-                    NameText = CreateObject("Text", { Size = 14, Center = true, Outline = true, Color = Color3.new(1, 1, 1), Font = 2 }),
-                    DistanceText = CreateObject("Text", { Size = 12, Center = true, Outline = true, Color = Color3.new(0, 1, 0), Font = 2 })
-                }
-            end
-
-            local objects = ESPObjects[char]
-
-            if ESPState.ShowBox then
-                objects.Box.Visible = true
-                objects.Box.Color = ESPState.Color
-                objects.Box.Size = Vector2.new(data.width, data.height)
-                objects.Box.Position = Vector2.new(data.x - (data.width / 2), data.headY)
+    for _, ent in pairs(visibleEnts) do
+        local dist = (Camera.CFrame.Position - ent.root.Position).Magnitude
+        if dist <= EntityESPState.MaxDistance then
+            local screen, onScreen = WorldToViewportPoint(Camera, ent.root.Position)
+            if onScreen then
+                if not EntityObjects[ent.obj] then
+                    EntityObjects[ent.obj] = {
+                        Text = CreateObject("Text", { Size = 13, Center = true, Outline = true, Font = 2 })
+                    }
+                end
+                local o = EntityObjects[ent.obj]
+                o.Text.Visible = true
+                o.Text.Color = EntityESPState.Color
+                local txt = ent.obj.Name
+                if EntityESPState.ShowDistance then txt = txt .. string.format(" [%dm]", math.floor(dist)) end
+                o.Text.Text = txt
+                o.Text.Position = Vector2.new(screen.X, screen.Y)
             else
-                objects.Box.Visible = false
-            end
-
-            if ESPState.ShowHealth and data.maxHealth > 0 then
-                objects.HealthBar.Visible = true
-                local barHeight = (data.health / data.maxHealth) * data.height
-                objects.HealthBar.Size = Vector2.new(2, barHeight)
-                objects.HealthBar.Position = Vector2.new(data.x - (data.width / 2) - 4, data.headY + (data.height - barHeight))
-            else
-                objects.HealthBar.Visible = false
-            end
-
-            if ESPState.ShowNames then
-                objects.NameText.Visible = true
-                objects.NameText.Text = data.name
-                objects.NameText.Position = Vector2.new(data.x, data.headY - 16)
-            else
-                objects.NameText.Visible = false
-            end
-
-            if ESPState.ShowDistance then
-                objects.DistanceText.Visible = true
-                objects.DistanceText.Text = string.format("[%dm]", math.floor(data.distance))
-                objects.DistanceText.Position = Vector2.new(data.x, data.headY - 28)
-            else
-                objects.DistanceText.Visible = false
+                if EntityObjects[ent.obj] then EntityObjects[ent.obj].Text.Visible = false end
             end
         else
-            if ESPObjects[char] then
-                local objects = ESPObjects[char]
-                if objects.Box then objects.Box.Visible = false end
-                if objects.HealthBar then objects.HealthBar.Visible = false end
-                if objects.NameText then objects.NameText.Visible = false end
-                if objects.DistanceText then objects.DistanceText.Visible = false end
-            end
+            if EntityObjects[ent.obj] then EntityObjects[ent.obj].Text.Visible = false end
         end
     end
 end
 
-RunService.RenderStepped:Connect(UpdateESP)
+RunService.RenderStepped:Connect(function()
+    UpdatePlayerESP()
+    UpdateEntityESP()
+end)
 
-ESPGroup:AddToggle("EspToggle", {
-    Text = "Enable ESP",
+PlayerGroup:AddToggle("PlayerEsp", {
+    Text = "Enable Player ESP",
     Default = false,
-    Callback = function(Value)
-        ESPState.Enabled = Value
-    end
+    Callback = function(v) PlayerESPState.Enabled = v end
 })
-
-ESPGroup:AddToggle("EspNames", {
-    Text = "Show Names",
+PlayerGroup:AddToggle("PlayerTracers", {
+    Text = "Show Tracers",
     Default = true,
-    Callback = function(Value)
-        ESPState.ShowNames = Value
-    end
+    Callback = function(v) PlayerESPState.ShowTracers = v end
 })
-
-ESPGroup:AddToggle("EspDistance", {
-    Text = "Show Distance",
-    Default = true,
-    Callback = function(Value)
-        ESPState.ShowDistance = Value
-    end
+PlayerGroup:AddToggle("PlayerSkel", {
+    Text = "Show Skeleton",
+    Default = false,
+    Callback = function(v) PlayerESPState.ShowSkeleton = v end
 })
-
-ESPGroup:AddToggle("EspBox", {
-    Text = "Show Boxes",
-    Default = true,
-    Callback = function(Value)
-        ESPState.ShowBox = Value
-    end
-})
-
-ESPGroup:AddToggle("EspHealth", {
-    Text = "Show Health",
-    Default = true,
-    Callback = function(Value)
-        ESPState.ShowHealth = Value
-    end
-})
-
-ESPGroup:AddSlider("EspDist", {
-    Text = "Max Distance",
-    Default = 1000,
-    Min = 100,
-    Max = 5000,
-    Rounding = 0,
-    Callback = function(Value)
-        ESPState.MaxDistance = Value
-    end,
-})
-
-ESPGroup:AddLabel("Color Picker"):AddColorPicker("EspColor", {
+PlayerGroup:AddColorPicker("PlayerColor", {
     Default = Color3.new(1, 0, 0),
-    Title = "ESP Color",
-    Transparency = 0,
-    Callback = function(Value)
-        ESPState.Color = Value
-    end,
+    Title = "Player ESP Color",
+    Callback = function(v) PlayerESPState.Color = v end
+})
+
+EntityGroup:AddToggle("EntEsp", {
+    Text = "Enable Entity ESP",
+    Default = false,
+    Callback = function(v) EntityESPState.Enabled = v end
+})
+EntityGroup:AddColorPicker("EntColor", {
+    Default = Color3.new(0, 1, 1),
+    Title = "Entity ESP Color",
+    Callback = function(v) EntityESPState.Color = v end
 })
