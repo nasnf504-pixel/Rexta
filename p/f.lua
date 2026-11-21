@@ -37,6 +37,7 @@ local PlayerESPState = {
     Color = Color3.new(1, 0, 0),
 }
 
+-- Реальные имена объектов из игры
 local EntityESPState = {
     Enabled = false,
     ShowNames = true,
@@ -44,15 +45,13 @@ local EntityESPState = {
     MaxDistance = 1500,
     Color = Color3.new(0, 1, 1),
     Items = {
+        ["Stone_Node"] = true,
+        ["Metal_Node"] = true,
+        ["Phosphate_Node"] = true,
         ["Weapon Crate"] = true,
         ["Airdrop"] = true,
         ["Timed Crate"] = true,
         ["Body Bag"] = true,
-        ["Minicopter"] = true,
-        ["Hemp"] = true,
-        ["Metal"] = true,
-        ["Stone"] = true,
-        ["Phosphate"] = true
     }
 }
 
@@ -214,14 +213,13 @@ local function UpdateEntityESP()
     local visibleEnts = {}
     for _, ent in pairs(activeEnts) do
         local isTarget = false
-        local objNameLower = string.lower(ent.obj.Name)
+        local objName = ent.obj.Name
         
-        for name, enabled in pairs(EntityESPState.Items) do
-            if enabled and string.find(objNameLower, string.lower(name)) then
-                isTarget = true
-                break
-            end
+        -- Теперь проверяем ТОЧНОЕ совпадение с ключом в таблице
+        if EntityESPState.Items[objName] then
+            isTarget = true
         end
+        
         if isTarget then table.insert(visibleEnts, ent) end
     end
 
@@ -300,8 +298,8 @@ EntityGroup:AddLabel("Entity Color"):AddColorPicker("EntColor", {
 
 EntityGroup:AddDropdown("EntItemsDropdown", {
     Text = "Select Items",
-    Values = {"Weapon Crate", "Airdrop", "Timed Crate", "Body Bag", "Minicopter", "Hemp", "Metal", "Stone", "Phosphate"},
-    Default = {"Weapon Crate", "Airdrop", "Timed Crate", "Body Bag", "Minicopter", "Hemp", "Metal", "Stone", "Phosphate"},
+    Values = {"Stone_Node", "Metal_Node", "Phosphate_Node", "Weapon Crate", "Airdrop", "Timed Crate", "Body Bag"},
+    Default = {"Stone_Node", "Metal_Node", "Phosphate_Node", "Weapon Crate", "Airdrop", "Timed Crate", "Body Bag"},
     Multi = true,
     Callback = function(Values)
         for k, v in pairs(EntityESPState.Items) do
