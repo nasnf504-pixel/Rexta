@@ -214,8 +214,10 @@ local function UpdateEntityESP()
     local visibleEnts = {}
     for _, ent in pairs(activeEnts) do
         local isTarget = false
+        local objNameLower = string.lower(ent.obj.Name)
+        
         for name, enabled in pairs(EntityESPState.Items) do
-            if enabled and string.find(string.lower(ent.obj.Name), string.lower(name)) then
+            if enabled and string.find(objNameLower, string.lower(name)) then
                 isTarget = true
                 break
             end
