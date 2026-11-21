@@ -87,7 +87,19 @@ local function UpdatePlayerESP()
     end
 
     for char, data in pairs(PlayerObjects) do
-        if not table.find(activeTargets, char) or not PlayerESPState.Enabled then
+        local keep = false
+        if PlayerESPState.Enabled then
+            for _, activeChar in pairs(activeTargets) do
+                if activeChar == char then
+                    local hrp = char:FindFirstChild("HumanoidRootPart")
+                    if hrp and (Camera.CFrame.Position - hrp.Position).Magnitude <= PlayerESPState.MaxDistance then
+                        keep = true
+                        break
+                    end
+                end
+            end
+        end
+        if not keep then
             for _, obj in pairs(data) do DestroyObject(obj) end
             PlayerObjects[char] = nil
         end
@@ -212,9 +224,16 @@ local function UpdateEntityESP()
     end
 
     for obj, data in pairs(EntityObjects) do
-        local found = false
-        for _, ent in pairs(visibleEnts) do if ent.obj == obj then found = true break end end
-        if not found or not EntityESPState.Enabled then
+        local keep = false
+        if EntityESPState.Enabled then
+            for _, ent in pairs(visibleEnts) do
+                if ent.obj == obj and (Camera.CFrame.Position - ent.root.Position).Magnitude <= EntityESPState.MaxDistance then
+                    keep = true
+                    break
+                end
+            end
+        end
+        if not keep then
             DestroyObject(data.Text)
             EntityObjects[obj] = nil
         end
@@ -253,80 +272,18 @@ RunService.RenderStepped:Connect(function()
     UpdateEntityESP()
 end)
 
-PlayerGroup:AddToggle("PlayerEsp", {
-    Text = "Enable Player ESP",
-    Default = false,
-    Callback = function(v) PlayerESPState.Enabled = v end
-})
-PlayerGroup:AddToggle("PlayerNames", {
-    Text = "Show Names",
-    Default = true,
-    Callback = function(v) PlayerESPState.ShowNames = v end
-})
-PlayerGroup:AddToggle("PlayerDist", {
-    Text = "Show Distance",
-    Default = true,
-    Callback = function(v) PlayerESPState.ShowDistance = v end
-})
-PlayerGroup:AddToggle("PlayerBox", {
-    Text = "Show Boxes",
-    Default = true,
-    Callback = function(v) PlayerESPState.ShowBox = v end
-})
-PlayerGroup:AddToggle("PlayerHealth", {
-    Text = "Show Health",
-    Default = true,
-    Callback = function(v) PlayerESPState.ShowHealth = v end
-})
-PlayerGroup:AddToggle("PlayerTracers", {
-    Text = "Show Tracers",
-    Default = false,
-    Callback = function(v) PlayerESPState.ShowTracers = v end
-})
-PlayerGroup:AddToggle("PlayerSkel", {
-    Text = "Show Skeleton",
-    Default = false,
-    Callback = function(v) PlayerESPState.ShowSkeleton = v end
-})
-PlayerGroup:AddSlider("PlayerMaxDist", {
-    Text = "Max Distance",
-    Default = 1000,
-    Min = 100,
-    Max = 5000,
-    Rounding = 0,
-    Callback = function(v) PlayerESPState.MaxDistance = v end
-})
-PlayerGroup:AddColorPicker("PlayerColor", {
-    Default = Color3.new(1, 0, 0),
-    Title = "Player ESP Color",
-    Callback = function(v) PlayerESPState.Color = v end
-})
+PlayerGroup:AddToggle("PlayerEsp", { Text = "Enable Player ESP", Default = false, Callback = function(v) PlayerESPState.Enabled = v end })
+PlayerGroup:AddToggle("PlayerNames", { Text = "Show Names", Default = true, Callback = function(v) PlayerESPState.ShowNames = v end })
+PlayerGroup:AddToggle("PlayerDist", { Text = "Show Distance", Default = true, Callback = function(v) PlayerESPState.ShowDistance = v end })
+PlayerGroup:AddToggle("PlayerBox", { Text = "Show Boxes", Default = true, Callback = function(v) PlayerESPState.ShowBox = v end })
+PlayerGroup:AddToggle("PlayerHealth", { Text = "Show Health", Default = true, Callback = function(v) PlayerESPState.ShowHealth = v end })
+PlayerGroup:AddToggle("PlayerTracers", { Text = "Show Tracers", Default = false, Callback = function(v) PlayerESPState.ShowTracers = v end })
+PlayerGroup:AddToggle("PlayerSkel", { Text = "Show Skeleton", Default = false, Callback = function(v) PlayerESPState.ShowSkeleton = v end })
+PlayerGroup:AddSlider("PlayerMaxDist", { Text = "Max Distance", Default = 1000, Min = 100, Max = 5000, Rounding = 0, Callback = function(v) PlayerESPState.MaxDistance = v end })
+PlayerGroup:AddColorPicker("PlayerColor", { Default = Color3.new(1, 0, 0), Title = "Player ESP Color", Callback = function(v) PlayerESPState.Color = v end })
 
-EntityGroup:AddToggle("EntEsp", {
-    Text = "Enable Entity ESP",
-    Default = false,
-    Callback = function(v) EntityESPState.Enabled = v end
-})
-EntityGroup:AddToggle("EntNames", {
-    Text = "Show Names",
-    Default = true,
-    Callback = function(v) EntityESPState.ShowNames = v end
-})
-EntityGroup:AddToggle("EntDist", {
-    Text = "Show Distance",
-    Default = true,
-    Callback = function(v) EntityESPState.ShowDistance = v end
-})
-EntityGroup:AddSlider("EntMaxDist", {
-    Text = "Max Distance",
-    Default = 1500,
-    Min = 100,
-    Max = 5000,
-    Rounding = 0,
-    Callback = function(v) EntityESPState.MaxDistance = v end
-})
-EntityGroup:AddColorPicker("EntColor", {
-    Default = Color3.new(0, 1, 1),
-    Title = "Entity ESP Color",
-    Callback = function(v) EntityESPState.Color = v end
-})
+EntityGroup:AddToggle("EntEsp", { Text = "Enable Entity ESP", Default = false, Callback = function(v) EntityESPState.Enabled = v end })
+EntityGroup:AddToggle("EntNames", { Text = "Show Names", Default = true, Callback = function(v) EntityESPState.ShowNames = v end })
+EntityGroup:AddToggle("EntDist", { Text = "Show Distance", Default = true, Callback = function(v) EntityESPState.ShowDistance = v end })
+EntityGroup:AddSlider("EntMaxDist", { Text = "Max Distance", Default = 1500, Min = 100, Max = 5000, Rounding = 0, Callback = function(v) EntityESPState.MaxDistance = v end })
+EntityGroup:AddColorPicker("EntColor", { Default = Color3.new(0, 1, 1), Title = "Entity ESP Color", Callback = function(v) EntityESPState.Color = v end })
