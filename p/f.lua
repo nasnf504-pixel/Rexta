@@ -29,7 +29,7 @@ local ESPState = {
     ShowBox = true,
     ShowHealth = true,
     MaxDistance = 1000,
-    Color = Color3.fromRGB(255, 0, 0),
+    Color = Color3.new(1, 0, 0),
 }
 
 local ActiveDrawings = {}
@@ -121,7 +121,7 @@ local function Render()
         end
         if ESPState.ShowHealth and data.maxHealth > 0 then
             local bar = CreateDrawing("Square", {
-                Thickness = 1, Color = Color3.fromRGB(0, 255, 0), Filled = true, Visible = true
+                Thickness = 1, Color = Color3.new(0, 1, 0), Filled = true, Visible = true
             })
             local barHeight = (data.health / data.maxHealth) * data.height
             bar.Size = Vector2.new(2, barHeight)
@@ -134,7 +134,7 @@ local function Render()
                 nameText = string.format("%s [%dm]", nameText, math.floor(data.distance))
             end
             local text = CreateDrawing("Text", {
-                Size = 14, Center = true, Outline = true, Color = Color3.fromRGB(255, 255, 255), Visible = true, Font = 2
+                Size = 14, Center = true, Outline = true, Color = Color3.new(1, 1, 1), Visible = true, Font = 2
             })
             text.Text = nameText
             text.Position = Vector2.new(data.x, data.headY - 16)
@@ -187,7 +187,7 @@ Tabs.Visuals:AddSlider("EspDist", {
 })
 
 Tabs.Visuals:AddLabel("Color Picker"):AddColorPicker("EspColor", {
-    Default = Color3.fromRGB(255, 0, 0),
+    Default = Color3.new(1, 0, 0),
     Title = "ESP Color",
     Transparency = 0,
     Callback = function(Value)
