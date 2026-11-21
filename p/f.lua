@@ -15,7 +15,8 @@ local Tabs = {
 }
 
 local PlayerGroup = Tabs.Visuals:AddLeftGroupbox("Players")
-local EntityGroup = Tabs.Visuals:AddRightGroupbox("Entities")
+local NodeGroup = Tabs.Visuals:AddLeftGroupbox("Ores")
+local CrateGroup = Tabs.Visuals:AddLeftGroupbox("Crates & Loot")
 
 local Workspace = cloneref and cloneref(workspace) or workspace
 local Players = cloneref and cloneref(game:GetService("Players")) or game:GetService("Players")
@@ -45,13 +46,19 @@ local EntityESPState = {
     Color = Color3.new(0, 1, 1),
 }
 
-local SelectedEntities = {
+-- Отдельные списки для руды и ящиков
+local SelectedNodes = {
     ["Stone_Node"] = true,
     ["Metal_Node"] = true,
     ["Phosphate_Node"] = true,
-    ["Weapon Crate"] = true,
-    ["Airdrop"] = true,
+}
+
+local SelectedCrates = {
     ["Timed Crate"] = true,
+    ["Wooden Crate"] = true,
+    ["Food Crate"] = true,
+    ["Locked Metal Crate"] = true,
+    ["Locked Wooden Crate"] = true,
     ["Body Bag"] = true,
 }
 
@@ -195,33 +202,41 @@ end
 
 local function UpdateEntityESP()
     local activeEnts = {}
-    local containers = {Workspace:FindFirstChild("Drops"), Workspace:FindFirstChild("Nodes")}
     
-    for _, container in pairs(containers) do
-        if container then
-            for _, child in pairs(container:GetChildren()) do
-                if child:IsA("Model") or child:IsA("Part") then
-                    local root = child:FindFirstChild("HumanoidRootPart") or (child:IsA("Part") and child) or child:FindFirstChildWhichIsA("BasePart")
-                    if root then
-                        table.insert(activeEnts, {obj = child, root = root})
-                    end
-                end
+    local nodesFolder = Workspace:FindFirstChild("Nodes")
+    if nodesFolder then
+        for _, child in pairs(nodesFolder:GetChildren()) do
+            if child:IsA("Model") and SelectedNodes[child.Name] then
+                local root = child:FindFirstChild("HumanoidRootPart") or child:FindFirstChildWhichIsA("BasePart")
+                if root then table.insert(activeEnts, {obj = child, root = root}) end
             end
         end
     end
 
-    local visibleEnts = {}
-    for _, ent in pairs(activeEnts) do
-        local objName = ent.obj.Name
-        if SelectedEntities[objName] then
-            table.insert(visibleEnts, ent)
+    local basesFolder = Workspace:FindFirstChild("Bases")
+    if basesFolder then
+        for _, container in pairs(basesFolder:GetDescendants()) do
+            if (container:IsA("Model") or container:IsA("Part")) and SelectedCrates[container.Name] then
+                local root = container:FindFirstChild("HumanoidRootPart") or container:FindFirstChildWhichIsA("BasePart") or (container:IsA("Part") and container)
+                if root then table.insert(activeEnts, {obj = container, root = root}) end
+            end
+        end
+    end
+
+    local dropsFolder = Workspace:FindFirstChild("Drops")
+    if dropsFolder then
+        for _, child in pairs(dropsFolder:GetChildren()) do
+            if (child:IsA("Model") or child:IsA("Part")) and SelectedCrates[child.Name] then
+                local root = child:FindFirstChild("HumanoidRootPart") or child:FindFirstChildWhichIsA("BasePart") or (child:IsA("Part") and child)
+                if root then table.insert(activeEnts, {obj = child, root = root}) end
+            end
         end
     end
 
     for obj, data in pairs(EntityObjects) do
         local keep = false
         if EntityESPState.Enabled then
-            for _, ent in pairs(visibleEnts) do
+            for _, ent in pairs(activeEnts) do
                 if ent.obj == obj and (Camera.CFrame.Position - ent.root.Position).Magnitude <= EntityESPState.MaxDistance then
                     keep = true
                     break
@@ -236,7 +251,7 @@ local function UpdateEntityESP()
 
     if not EntityESPState.Enabled then return end
 
-    for _, ent in pairs(visibleEnts) do
+    for _, ent in pairs(activeEnts) do
         local dist = (Camera.CFrame.Position - ent.root.Position).Magnitude
         if dist <= EntityESPState.MaxDistance then
             local screen, onScreen = WorldToViewportPoint(Camera, ent.root.Position)
@@ -281,22 +296,23 @@ PlayerGroup:AddLabel("ESP Color"):AddColorPicker("PlayerColor", {
     Callback = function(v) PlayerESPState.Color = v end
 })
 
-EntityGroup:AddToggle("EntEsp", { Text = "Enable Entity ESP", Default = false, Callback = function(v) EntityESPState.Enabled = v end })
-EntityGroup:AddToggle("EntNames", { Text = "Show Names", Default = true, Callback = function(v) EntityESPState.ShowNames = v end })
-EntityGroup:AddToggle("EntDist", { Text = "Show Distance", Default = true, Callback = function(v) EntityESPState.ShowDistance = v end })
-EntityGroup:AddSlider("EntMaxDist", { Text = "Max Distance", Default = 1500, Min = 100, Max = 5000, Rounding = 0, Callback = function(v) EntityESPState.MaxDistance = v end })
-EntityGroup:AddLabel("Entity Color"):AddColorPicker("EntColor", {
+NodeGroup:AddToggle("EntEsp", { Text = "Enable Entity ESP", Default = false, Callback = function(v) EntityESPState.Enabled = v end })
+NodeGroup:AddToggle("EntNames", { Text = "Show Names", Default = true, Callback = function(v) EntityESPState.ShowNames = v end })
+NodeGroup:AddToggle("EntDist", { Text = "Show Distance", Default = true, Callback = function(v) EntityESPState.ShowDistance = v end })
+NodeGroup:AddSlider("EntMaxDist", { Text = "Max Distance", Default = 1500, Min = 100, Max = 5000, Rounding = 0, Callback = function(v) EntityESPState.MaxDistance = v end })
+NodeGroup:AddLabel("Entity Color"):AddColorPicker("EntColor", {
     Default = Color3.new(0, 1, 1),
     Title = "Entity ESP Color",
     Callback = function(v) EntityESPState.Color = v end
 })
 
-EntityGroup:AddDivider()
+NodeGroup:AddToggle("NodeStone", { Text = "Stone Node", Default = true, Callback = function(v) SelectedNodes["Stone_Node"] = v end })
+NodeGroup:AddToggle("NodeMetal", { Text = "Metal Node", Default = true, Callback = function(v) SelectedNodes["Metal_Node"] = v end })
+NodeGroup:AddToggle("NodePhosphate", { Text = "Phosphate Node", Default = true, Callback = function(v) SelectedNodes["Phosphate_Node"] = v end })
 
-EntityGroup:AddToggle("EntStone", { Text = "Stone Node", Default = true, Callback = function(v) SelectedEntities["Stone_Node"] = v end })
-EntityGroup:AddToggle("EntMetal", { Text = "Metal Node", Default = true, Callback = function(v) SelectedEntities["Metal_Node"] = v end })
-EntityGroup:AddToggle("EntPhosphate", { Text = "Phosphate Node", Default = true, Callback = function(v) SelectedEntities["Phosphate_Node"] = v end })
-EntityGroup:AddToggle("EntWeaponCrate", { Text = "Weapon Crate", Default = true, Callback = function(v) SelectedEntities["Weapon Crate"] = v end })
-EntityGroup:AddToggle("EntAirdrop", { Text = "Airdrop", Default = true, Callback = function(v) SelectedEntities["Airdrop"] = v end })
-EntityGroup:AddToggle("EntTimedCrate", { Text = "Timed Crate", Default = true, Callback = function(v) SelectedEntities["Timed Crate"] = v end })
-EntityGroup:AddToggle("EntBodyBag", { Text = "Body Bag", Default = true, Callback = function(v) SelectedEntities["Body Bag"] = v end })
+CrateGroup:AddToggle("CrateTimed", { Text = "Timed Crate", Default = true, Callback = function(v) SelectedCrates["Timed Crate"] = v end })
+CrateGroup:AddToggle("CrateWooden", { Text = "Wooden Crate", Default = true, Callback = function(v) SelectedCrates["Wooden Crate"] = v end })
+CrateGroup:AddToggle("CrateFood", { Text = "Food Crate", Default = true, Callback = function(v) SelectedCrates["Food Crate"] = v end })
+CrateGroup:AddToggle("CrateLockedMetal", { Text = "Locked Metal Crate", Default = true, Callback = function(v) SelectedCrates["Locked Metal Crate"] = v end })
+CrateGroup:AddToggle("CrateLockedWood", { Text = "Locked Wooden Crate", Default = true, Callback = function(v) SelectedCrates["Locked Wooden Crate"] = v end })
+CrateGroup:AddToggle("CrateBodyBag", { Text = "Body Bag", Default = true, Callback = function(v) SelectedCrates["Body Bag"] = v end })
