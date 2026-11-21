@@ -2,9 +2,9 @@ local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
 local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
 
 local Window = Library:CreateWindow({
-    Title = "Utility",
+    Title = "Rexta",
     Footer = "v1.0",
-    Icon = 95816097006870,
+    Icon = 10511856020,
     NotifySide = "Right",
     ShowCustomCursor = false,
 })
