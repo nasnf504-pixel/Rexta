@@ -11,16 +11,19 @@ local Window = Library:CreateWindow({
 
 local Tabs = {
     Visuals = Window:AddTab("Visuals", "eye"),
+    Combat = Window:AddTab("Combat", "crosshair"),
     Settings = Window:AddTab("Settings", "settings"),
 }
 
 local PlayerGroup = Tabs.Visuals:AddLeftGroupbox("Players")
 local NodeGroup = Tabs.Visuals:AddLeftGroupbox("Ores")
 local CrateGroup = Tabs.Visuals:AddLeftGroupbox("Crates & Loot")
+local SilentAimGroup = Tabs.Combat:AddLeftGroupbox("Silent Aim")
 
 local Workspace = cloneref and cloneref(workspace) or workspace
 local Players = cloneref and cloneref(game:GetService("Players")) or game:GetService("Players")
 local RunService = cloneref and cloneref(game:GetService("RunService")) or game:GetService("RunService")
+local UserInputService = cloneref and cloneref(game:GetService("UserInputService")) or game:GetService("UserInputService")
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 local Drawing = Drawing
@@ -44,6 +47,14 @@ local EntityESPState = {
     ShowDistance = true,
     MaxDistance = 1500,
     Color = Color3.new(0, 1, 1),
+}
+
+local SilentAimState = {
+    Enabled = false,
+    TargetPart = "Head",
+    FOV = 150,
+    VisibleCheck = false,
+    TargetNPCs = false,
 }
 
 local SelectedNodes = {
@@ -283,6 +294,44 @@ local function UpdateEntityESP()
     end
 end
 
+local function GetClosestTarget()
+    local closest = nil
+    local shortestDist = SilentAimState.FOV
+    
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            local part = plr.Character:FindFirstChild(SilentAimState.TargetPart)
+            if part then
+                local screenPos, onScreen = WorldToViewportPoint(Camera, part.Position)
+                if onScreen then
+                    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                    if dist < shortestDist then
+                        shortestDist = dist
+                        closest = part
+                    end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local oldIndex
+oldIndex = hookmetamethod(game, "__index", function(t, k)
+    if not checkcaller() and t == LocalPlayer and k == "GetMouse" then
+        if SilentAimState.Enabled then
+            local targetPart = GetClosestTarget()
+            if targetPart then
+                return function()
+                    return {Hit = CFrame.new(targetPart.Position), Target = targetPart, UnitRay = Ray.new(Camera.CFrame.Position, (targetPart.Position - Camera.CFrame.Position).Unit)}
+                end
+            end
+        end
+    end
+    return oldIndex(t, k)
+end)
+
 RunService.RenderStepped:Connect(function()
     UpdatePlayerESP()
     UpdateEntityESP()
@@ -322,3 +371,20 @@ CrateGroup:AddToggle("CrateFood", { Text = "Food Crate", Default = true, Callbac
 CrateGroup:AddToggle("CrateLockedMetal", { Text = "Locked Metal Crate", Default = true, Callback = function(v) SelectedCrates["Locked Metal Crate"] = v end })
 CrateGroup:AddToggle("CrateLockedWood", { Text = "Locked Wooden Crate", Default = true, Callback = function(v) SelectedCrates["Locked Wooden Crate"] = v end })
 CrateGroup:AddToggle("CrateBodyBag", { Text = "Body Bag", Default = true, Callback = function(v) SelectedCrates["Body Bag"] = v end })
+
+SilentAimGroup:AddToggle("SilentAim", { Text = "Enable Silent Aim", Default = false, Callback = function(v) SilentAimState.Enabled = v end })
+SilentAimGroup:AddDropdown("AimPart", {
+    Text = "Target Part",
+    Values = {"Head", "HumanoidRootPart", "UpperTorso", "Torso", "LowerTorso"},
+    Default = "Head",
+    Multi = false,
+    Callback = function(v) SilentAimState.TargetPart = v end
+})
+SilentAimGroup:AddSlider("AimFOV", {
+    Text = "FOV",
+    Default = 150,
+    Min = 10,
+    Max = 500,
+    Rounding = 0,
+    Callback = function(v) SilentAimState.FOV = v end
+})
