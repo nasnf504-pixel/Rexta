@@ -15,12 +15,21 @@ local setreadonly = setreadonly
 
 if not getgc then return end
 
+local islclosure = islclosure or is_lua_closure
 local bannedTableUpvalue = 2
 local foundBypass = false
 
 for _, obj in next, getgc(true) do
-    if type(obj) == "function" and getconstants(obj) then
-        local consts = getconstants(obj)
+    if type(obj) == "function" then
+        if islclosure and not islclosure(obj) then
+            continue
+        end
+        
+        local success, consts = pcall(getconstants, obj)
+        if not success or type(consts) ~= "table" then
+            continue
+        end
+        
         local hasWalkSpeed = false
         for _, c in next, consts do
             if c == "WalkSpeed" then
