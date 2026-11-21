@@ -11,10 +11,7 @@ local Window = Library:CreateWindow({
 
 local Tabs = {
     Visuals = Window:AddTab("Visuals", "eye"),
-    Settings = Window:AddTab("Settings", "settings"),
 }
-
-local ESPGroup = Tabs.Visuals:AddLeftGroupbox("ESP")
 
 local Workspace = cloneref and cloneref(workspace) or workspace
 local Players = cloneref and cloneref(game:GetService("Players")) or game:GetService("Players")
@@ -154,51 +151,38 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-ESPGroup:AddToggle("EspToggle", {
+Tabs.Visuals:AddToggle("EspToggle", {
     Text = "Enable ESP",
     Default = false,
-    Tooltip = "Toggle player and NPC ESP",
     Callback = function(Value)
         ESPState.Enabled = Value
         if not Value then Cleanup() end
     end
 })
 
-ESPGroup:AddToggle("EspNames", {
+Tabs.Visuals:AddToggle("EspNames", {
     Text = "Show Names",
     Default = true,
-    Tooltip = "Show player names and distance",
     Callback = function(Value)
         ESPState.ShowNames = Value
     end
 })
 
-ESPGroup:AddToggle("EspBox", {
+Tabs.Visuals:AddToggle("EspBox", {
     Text = "Show Boxes",
     Default = true,
-    Tooltip = "Draw boxes around targets",
     Callback = function(Value)
         ESPState.ShowBox = Value
     end
 })
 
-ESPGroup:AddSlider("EspDist", {
+Tabs.Visuals:AddSlider("EspDist", {
     Text = "Max Distance",
     Default = 1000,
     Min = 100,
     Max = 5000,
     Rounding = 0,
-    Tooltip = "Maximum render distance for ESP",
     Callback = function(Value)
         ESPState.MaxDistance = Value
-    end,
-})
-
-ESPGroup:AddLabel("Color Picker"):AddColorPicker("EspColor", {
-    Default = Color3.fromRGB(255, 0, 0),
-    Title = "ESP Color",
-    Transparency = 0,
-    Callback = function(Value)
-        ESPState.Color = Value
     end,
 })
