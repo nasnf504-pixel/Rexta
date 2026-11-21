@@ -214,8 +214,8 @@ local function UpdateEntityESP()
     local visibleEnts = {}
     for _, ent in pairs(activeEnts) do
         local isTarget = false
-        for name, _ in pairs(EntityESPState.Items) do
-            if string.find(string.lower(ent.obj.Name), string.lower(name)) then
+        for name, enabled in pairs(EntityESPState.Items) do
+            if enabled and string.find(string.lower(ent.obj.Name), string.lower(name)) then
                 isTarget = true
                 break
             end
@@ -294,4 +294,21 @@ EntityGroup:AddLabel("Entity Color"):AddColorPicker("EntColor", {
     Default = Color3.new(0, 1, 1),
     Title = "Entity ESP Color",
     Callback = function(v) EntityESPState.Color = v end
+})
+
+EntityGroup:AddDropdown("EntItemsDropdown", {
+    Text = "Select Items",
+    Values = {"Weapon Crate", "Airdrop", "Timed Crate", "Body Bag", "Minicopter", "Hemp", "Metal", "Stone", "Phosphate"},
+    Default = {"Weapon Crate", "Airdrop", "Timed Crate", "Body Bag", "Minicopter", "Hemp", "Metal", "Stone", "Phosphate"},
+    Multi = true,
+    Callback = function(Values)
+        for k, v in pairs(EntityESPState.Items) do
+            EntityESPState.Items[k] = false
+        end
+        for _, v in pairs(Values) do
+            if EntityESPState.Items[v] ~= nil then
+                EntityESPState.Items[v] = true
+            end
+        end
+    end
 })
