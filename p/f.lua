@@ -14,6 +14,9 @@ local Tabs = {
     Settings = Window:AddTab("Settings", "settings"),
 }
 
+-- Вот тут создаём группу, внутри которой будут кнопки
+local ESPGroup = Tabs.Visuals:AddLeftGroupbox("ESP")
+
 local Workspace = cloneref and cloneref(workspace) or workspace
 local Players = cloneref and cloneref(game:GetService("Players")) or game:GetService("Players")
 local RunService = cloneref and cloneref(game:GetService("RunService")) or game:GetService("RunService")
@@ -150,7 +153,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
-Tabs.Visuals:AddToggle("EspToggle", {
+ESPGroup:AddToggle("EspToggle", {
     Text = "Enable ESP",
     Default = false,
     Callback = function(Value)
@@ -159,7 +162,7 @@ Tabs.Visuals:AddToggle("EspToggle", {
     end
 })
 
-Tabs.Visuals:AddToggle("EspNames", {
+ESPGroup:AddToggle("EspNames", {
     Text = "Show Names",
     Default = true,
     Callback = function(Value)
@@ -167,7 +170,7 @@ Tabs.Visuals:AddToggle("EspNames", {
     end
 })
 
-Tabs.Visuals:AddToggle("EspBox", {
+ESPGroup:AddToggle("EspBox", {
     Text = "Show Boxes",
     Default = true,
     Callback = function(Value)
@@ -175,7 +178,7 @@ Tabs.Visuals:AddToggle("EspBox", {
     end
 })
 
-Tabs.Visuals:AddSlider("EspDist", {
+ESPGroup:AddSlider("EspDist", {
     Text = "Max Distance",
     Default = 1000,
     Min = 100,
@@ -186,7 +189,7 @@ Tabs.Visuals:AddSlider("EspDist", {
     end,
 })
 
-Tabs.Visuals:AddLabel("Color Picker"):AddColorPicker("EspColor", {
+ESPGroup:AddLabel("Color Picker"):AddColorPicker("EspColor", {
     Default = Color3.new(1, 0, 0),
     Title = "ESP Color",
     Transparency = 0,
