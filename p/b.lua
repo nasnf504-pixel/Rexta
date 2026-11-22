@@ -16,7 +16,8 @@ local setreadonly = setreadonly
 if not getgc then return end
 
 local islclosure = islclosure or is_lua_closure
-local bannedTableUpvalue = 2
+local offsets = (getgenv and getgenv().RextaOffsets) or nil
+local bannedTableUpvalue = (offsets and offsets.asset and offsets.asset.BAN_TABLE_UPVALUE) or 2
 local foundBypass = false
 
 for _, obj in next, getgc(true) do
