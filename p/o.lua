@@ -33,4 +33,8 @@ local Offsets = {
     }
 }
 
+if getgenv then
+    getgenv().RextaOffsets = Offsets
+end
+
 return Offsets
