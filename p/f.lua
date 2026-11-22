@@ -61,11 +61,12 @@ local SilentAimState = {
 
 local AimbotState = {
     Enabled = false,
-    Key = "MouseButton2",
     TargetPart = "Head",
     Smoothness = 0.25,
     FOV = 150,
     DrawFOV = false,
+    PickerValue = "MB2",
+    MouseOverride = "None",
 }
 
 local SelectedNodes = {
@@ -392,23 +393,53 @@ local function GetAimbotTarget()
     return closest
 end
 
-local function IsAimbotKeyHeld()
-    local k = AimbotState.Key
-    if k == "MouseButton2" then
-        return UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
-    elseif k == "MouseButton1" then
+local function IsAimbotBindHeld()
+    local override = AimbotState.MouseOverride
+    if override == "Mouse 0 (MB1)" then
         return UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
-    elseif k == "E" then
-        return UserInputService:IsKeyDown(Enum.KeyCode.E)
-    elseif k == "Q" then
-        return UserInputService:IsKeyDown(Enum.KeyCode.Q)
+    elseif override == "Mouse 2 (MB2)" then
+        return UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+    elseif override == "Mouse 3 (MB3)" then
+        return UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton3)
     end
+
+    local picker = Options and Options.AimbotKeyPicker
+    if picker then
+        local okState, isDown = pcall(function()
+            return picker:GetState()
+        end)
+        if okState and type(isDown) == "boolean" then
+            return isDown
+        end
+
+        local val = picker.Value
+        if type(val) == "string" then
+            if val == "MB1" or val == "MouseButton1" then
+                return UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+            elseif val == "MB2" or val == "MouseButton2" then
+                return UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+            elseif val == "MB3" or val == "MouseButton3" then
+                return UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton3)
+            end
+            local enumKey = Enum.KeyCode[val]
+            if enumKey then
+                return UserInputService:IsKeyDown(enumKey)
+            end
+        elseif typeof(val) == "EnumItem" then
+            if val.EnumType == Enum.KeyCode then
+                return UserInputService:IsKeyDown(val)
+            elseif val.EnumType == Enum.UserInputType then
+                return UserInputService:IsMouseButtonPressed(val)
+            end
+        end
+    end
+
     return false
 end
 
 local function UpdateAimbot()
     if not AimbotState.Enabled or not Camera then return end
-    if not IsAimbotKeyHeld() then return end
+    if not IsAimbotBindHeld() then return end
 
     local targetPart = GetAimbotTarget()
     if not targetPart then return end
@@ -544,12 +575,22 @@ SilentAimGroup:AddSlider("AimFOV", {
 
 AimbotGroup:AddToggle("AimbotEnabled", { Text = "Enable Aimbot", Default = false, Callback = function(v) AimbotState.Enabled = v end })
 AimbotGroup:AddToggle("AimbotDrawFOV", { Text = "Draw Aimbot FOV", Default = false, Callback = function(v) AimbotState.DrawFOV = v end })
-AimbotGroup:AddDropdown("AimbotKey", {
-    Text = "Aimbot Key",
-    Values = {"MouseButton2", "MouseButton1", "E", "Q"},
-    Default = "MouseButton2",
+AimbotGroup:AddLabel("Aimbot Bind"):AddKeyPicker("AimbotKeyPicker", {
+    Default = "MB2",
+    Mode = "Hold",
+    Text = "Aimbot Bind",
+    Callback = function(v)
+        AimbotState.PickerValue = v
+    end,
+})
+AimbotGroup:AddDropdown("AimbotMouseOverride", {
+    Text = "Mouse Button Override",
+    Values = { "None", "Mouse 0 (MB1)", "Mouse 2 (MB2)", "Mouse 3 (MB3)" },
+    Default = "None",
     Multi = false,
-    Callback = function(v) AimbotState.Key = v end
+    Callback = function(v)
+        AimbotState.MouseOverride = v
+    end,
 })
 AimbotGroup:AddDropdown("AimbotPart", {
     Text = "Target Part",
