@@ -769,10 +769,20 @@ local function UpdatePlayerESP()
             local dist = (Camera.CFrame.Position - hrp.Position).Magnitude
             if dist <= PlayerESPState.MaxDistance then
                 local cf, size = GetBoundingBox(char, true)
-                if not cf or not size then continue end
+                if not cf or not size then 
+                    if PlayerObjects[char] then
+                        for _, obj in pairs(PlayerObjects[char]) do obj.Visible = false end
+                    end
+                    continue
+                end
                 
                 local center, offset = GetBoxOffset(cf, size)
-                if not center or not offset then continue end
+                if not center or not offset then 
+                    if PlayerObjects[char] then
+                        for _, obj in pairs(PlayerObjects[char]) do obj.Visible = false end
+                    end
+                    continue
+                end
                 
                 if not PlayerObjects[char] then
                     PlayerObjects[char] = {
@@ -921,10 +931,24 @@ local function UpdateEntityESP()
             local dist = (Camera.CFrame.Position - pivot.Position).Magnitude
             if dist <= EntityESPState.MaxDistance then
                 local cf, size = GetBoundingBox(ent, false)
-                if not cf or not size then continue end
+                if not cf or not size then
+                    if EntityObjects[ent] then
+                        EntityObjects[ent].Box.Visible = false
+                        EntityObjects[ent].BoxOutline.Visible = false
+                        EntityObjects[ent].Text.Visible = false
+                    end
+                    continue
+                end
                 
                 local center, offset = GetBoxOffset(cf, size)
-                if not center or not offset then continue end
+                if not center or not offset then
+                    if EntityObjects[ent] then
+                        EntityObjects[ent].Box.Visible = false
+                        EntityObjects[ent].BoxOutline.Visible = false
+                        EntityObjects[ent].Text.Visible = false
+                    end
+                    continue
+                end
 
                 if not EntityObjects[ent] then
                     EntityObjects[ent] = {
