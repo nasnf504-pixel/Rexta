@@ -19,6 +19,7 @@ local PlayerGroup = Tabs.Visuals:AddLeftGroupbox("Players")
 local NodeGroup = Tabs.Visuals:AddLeftGroupbox("Ores")
 local CrateGroup = Tabs.Visuals:AddLeftGroupbox("Crates & Loot")
 local SilentAimGroup = Tabs.Combat:AddLeftGroupbox("Silent Aim")
+local AimbotGroup = Tabs.Combat:AddRightGroupbox("Aimbot")
 
 local Workspace = cloneref and cloneref(workspace) or workspace
 local Players = cloneref and cloneref(game:GetService("Players")) or game:GetService("Players")
@@ -58,6 +59,15 @@ local SilentAimState = {
     DrawFOV = false,
 }
 
+local AimbotState = {
+    Enabled = false,
+    Key = "MouseButton2",
+    TargetPart = "Head",
+    Smoothness = 0.25,
+    FOV = 150,
+    DrawFOV = false,
+}
+
 local SelectedNodes = {
     ["Stone_Node"] = true,
     ["Metal_Node"] = true,
@@ -76,6 +86,7 @@ local SelectedCrates = {
 local PlayerObjects = {}
 local EntityObjects = {}
 local FOVCircle = nil
+local AimbotFOVCircle = nil
 
 local function CreateObject(className, properties)
     local obj = Drawing.new(className)
@@ -85,6 +96,18 @@ end
 
 local function DestroyObject(obj)
     if obj then pcall(function() obj:Remove() end) end
+end
+
+local function SetSegment(line, p1, p2, visible, color)
+    if not line then return end
+    if visible and p1 and p2 then
+        line.Visible = true
+        line.Color = color
+        line.From = p1
+        line.To = p2
+    else
+        line.Visible = false
+    end
 end
 
 local function GetBonePos(char, boneName)
@@ -134,7 +157,7 @@ local function UpdatePlayerESP()
             if dist <= PlayerESPState.MaxDistance then
                 local screenPos, onScreen = WorldToViewportPoint(Camera, hrp.Position)
                 local headPos, headOnScreen = WorldToViewportPoint(Camera, head.Position + Vector3.new(0, 0.5, 0))
-                
+
                 if onScreen and headOnScreen then
                     if not PlayerObjects[char] then
                         PlayerObjects[char] = {
@@ -144,18 +167,22 @@ local function UpdatePlayerESP()
                             DistText = CreateObject("Text", { Size = 12, Center = true, Outline = true, Font = 2 }),
                             Tracer = CreateObject("Line", { Thickness = 1 }),
                             SkelHead = CreateObject("Line", { Thickness = 1 }),
-                            SkelTorso = CreateObject("Line", { Thickness = 1 }),
-                            SkelL1 = CreateObject("Line", { Thickness = 1 }),
-                            SkelL2 = CreateObject("Line", { Thickness = 1 }),
-                            SkelR1 = CreateObject("Line", { Thickness = 1 }),
-                            SkelR2 = CreateObject("Line", { Thickness = 1 }),
+                            SkelSpine = CreateObject("Line", { Thickness = 1 }),
+                            SkelLUpperArm = CreateObject("Line", { Thickness = 1 }),
+                            SkelLLowerArm = CreateObject("Line", { Thickness = 1 }),
+                            SkelRUpperArm = CreateObject("Line", { Thickness = 1 }),
+                            SkelRLowerArm = CreateObject("Line", { Thickness = 1 }),
+                            SkelLLeg = CreateObject("Line", { Thickness = 1 }),
+                            SkelLLowerLeg = CreateObject("Line", { Thickness = 1 }),
+                            SkelRLeg = CreateObject("Line", { Thickness = 1 }),
+                            SkelRLowerLeg = CreateObject("Line", { Thickness = 1 }),
                         }
                     end
 
                     local o = PlayerObjects[char]
                     local boxHeight = math.abs(screenPos.Y - headPos.Y)
                     local boxWidth = boxHeight / 2
-                    
+
                     local minHeight = 25
                     local minWidth = 12
                     if boxHeight < minHeight then
@@ -190,24 +217,46 @@ local function UpdatePlayerESP()
                     o.Tracer.To = Vector2.new(screenPos.X, screenPos.Y)
 
                     local skelVisible = PlayerESPState.ShowSkeleton
-                    for _, skel in pairs({o.SkelHead, o.SkelTorso, o.SkelL1, o.SkelL2, o.SkelR1, o.SkelR2}) do
-                        skel.Visible = skelVisible
-                        skel.Color = PlayerESPState.Color
-                    end
+                    local col = PlayerESPState.Color
 
                     if skelVisible then
                         local h = GetBonePos(char, "Head")
-                        local t = GetBonePos(char, "UpperTorso") or GetBonePos(char, "Torso")
-                        local la = GetBonePos(char, "LeftUpperArm") or GetBonePos(char, "Left Arm")
-                        local ra = GetBonePos(char, "RightUpperArm") or GetBonePos(char, "Right Arm")
-                        local ll = GetBonePos(char, "LeftLowerArm") or GetBonePos(char, "Left Arm")
-                        local rl = GetBonePos(char, "RightLowerArm") or GetBonePos(char, "Right Arm")
+                        local upperT = GetBonePos(char, "UpperTorso") or GetBonePos(char, "Torso")
+                        local lowerT = GetBonePos(char, "LowerTorso") or GetBonePos(char, "HumanoidRootPart")
 
-                        if h and t then o.SkelHead.From = h; o.SkelHead.To = t end
-                        if la and t then o.SkelTorso.From = t; o.SkelTorso.To = la end
-                        if la and ll then o.SkelL1.From = la; o.SkelL1.To = ll end
-                        if ra and t then o.SkelR1.From = t; o.SkelR1.To = ra end
-                        if ra and rl then o.SkelR2.From = ra; o.SkelR2.To = rl end
+                        local lUpperArm = GetBonePos(char, "LeftUpperArm") or GetBonePos(char, "Left Arm")
+                        local lLowerArm = GetBonePos(char, "LeftLowerArm") or GetBonePos(char, "LeftHand") or GetBonePos(char, "Left Arm")
+
+                        local rUpperArm = GetBonePos(char, "RightUpperArm") or GetBonePos(char, "Right Arm")
+                        local rLowerArm = GetBonePos(char, "RightLowerArm") or GetBonePos(char, "RightHand") or GetBonePos(char, "Right Arm")
+
+                        local lUpperLeg = GetBonePos(char, "LeftUpperLeg") or GetBonePos(char, "Left Leg")
+                        local lLowerLeg = GetBonePos(char, "LeftLowerLeg") or GetBonePos(char, "LeftFoot") or GetBonePos(char, "Left Leg")
+
+                        local rUpperLeg = GetBonePos(char, "RightUpperLeg") or GetBonePos(char, "Right Leg")
+                        local rLowerLeg = GetBonePos(char, "RightLowerLeg") or GetBonePos(char, "RightFoot") or GetBonePos(char, "Right Leg")
+
+                        SetSegment(o.SkelHead, h, upperT, true, col)
+                        SetSegment(o.SkelSpine, upperT, lowerT, true, col)
+                        SetSegment(o.SkelLUpperArm, upperT, lUpperArm, true, col)
+                        SetSegment(o.SkelLLowerArm, lUpperArm, lLowerArm, true, col)
+                        SetSegment(o.SkelRUpperArm, upperT, rUpperArm, true, col)
+                        SetSegment(o.SkelRLowerArm, rUpperArm, rLowerArm, true, col)
+                        SetSegment(o.SkelLLeg, lowerT, lUpperLeg, true, col)
+                        SetSegment(o.SkelLLowerLeg, lUpperLeg, lLowerLeg, true, col)
+                        SetSegment(o.SkelRLeg, lowerT, rUpperLeg, true, col)
+                        SetSegment(o.SkelRLowerLeg, rUpperLeg, rLowerLeg, true, col)
+                    else
+                        SetSegment(o.SkelHead, nil, nil, false, col)
+                        SetSegment(o.SkelSpine, nil, nil, false, col)
+                        SetSegment(o.SkelLUpperArm, nil, nil, false, col)
+                        SetSegment(o.SkelLLowerArm, nil, nil, false, col)
+                        SetSegment(o.SkelRUpperArm, nil, nil, false, col)
+                        SetSegment(o.SkelRLowerArm, nil, nil, false, col)
+                        SetSegment(o.SkelLLeg, nil, nil, false, col)
+                        SetSegment(o.SkelLLowerLeg, nil, nil, false, col)
+                        SetSegment(o.SkelRLeg, nil, nil, false, col)
+                        SetSegment(o.SkelRLowerLeg, nil, nil, false, col)
                     end
                 else
                     if PlayerObjects[char] then
@@ -221,7 +270,7 @@ end
 
 local function UpdateEntityESP()
     local activeEnts = {}
-    
+
     local nodesFolder = Workspace:FindFirstChild("Nodes")
     if nodesFolder then
         for _, child in pairs(nodesFolder:GetChildren()) do
@@ -299,7 +348,7 @@ end
 local function GetClosestTarget()
     local closest = nil
     local shortestDist = SilentAimState.FOV
-    
+
     for _, plr in pairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer and plr.Character then
             local part = plr.Character:FindFirstChild(SilentAimState.TargetPart)
@@ -319,32 +368,102 @@ local function GetClosestTarget()
     return closest
 end
 
+local function GetAimbotTarget()
+    local closest = nil
+    local shortestDist = AimbotState.FOV
+    local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+            local part = plr.Character:FindFirstChild(AimbotState.TargetPart) or plr.Character:FindFirstChild("Head")
+            if part and (not hum or hum.Health > 0) then
+                local screenPos, onScreen = WorldToViewportPoint(Camera, part.Position)
+                if onScreen then
+                    local dist = (Vector2.new(screenPos.X, screenPos.Y) - center).Magnitude
+                    if dist < shortestDist then
+                        shortestDist = dist
+                        closest = part
+                    end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local function IsAimbotKeyHeld()
+    local k = AimbotState.Key
+    if k == "MouseButton2" then
+        return UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2)
+    elseif k == "MouseButton1" then
+        return UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton1)
+    elseif k == "E" then
+        return UserInputService:IsKeyDown(Enum.KeyCode.E)
+    elseif k == "Q" then
+        return UserInputService:IsKeyDown(Enum.KeyCode.Q)
+    end
+    return false
+end
+
+local function UpdateAimbot()
+    if not AimbotState.Enabled or not Camera then return end
+    if not IsAimbotKeyHeld() then return end
+
+    local targetPart = GetAimbotTarget()
+    if not targetPart then return end
+
+    local camPos = Camera.CFrame.Position
+    local desiredCF = CFrame.new(camPos, targetPart.Position)
+    local alpha = math.clamp(AimbotState.Smoothness, 0.01, 1)
+    Camera.CFrame = Camera.CFrame:Lerp(desiredCF, alpha)
+end
+
 local function UpdateFOV()
     if not SilentAimState.DrawFOV then
         if FOVCircle then
             FOVCircle.Visible = false
         end
-        return
-    end
-
-    if not FOVCircle then
-        FOVCircle = CreateObject("Circle", {
-            Thickness = 1,
-            NumSides = 60,
-            Filled = false,
-            Transparency = 0.5,
-        })
-    end
-
-    FOVCircle.Visible = true
-    FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    FOVCircle.Radius = SilentAimState.FOV
-
-    local target = GetClosestTarget()
-    if target then
-        FOVCircle.Color = Color3.new(0, 0, 1)
     else
-        FOVCircle.Color = Color3.new(1, 1, 1)
+        if not FOVCircle then
+            FOVCircle = CreateObject("Circle", {
+                Thickness = 1,
+                NumSides = 60,
+                Filled = false,
+                Transparency = 0.5,
+            })
+        end
+
+        FOVCircle.Visible = true
+        FOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        FOVCircle.Radius = SilentAimState.FOV
+
+        local target = GetClosestTarget()
+        if target then
+            FOVCircle.Color = Color3.new(0, 0, 1)
+        else
+            FOVCircle.Color = Color3.new(1, 1, 1)
+        end
+    end
+
+    if not AimbotState.DrawFOV then
+        if AimbotFOVCircle then
+            AimbotFOVCircle.Visible = false
+        end
+    else
+        if not AimbotFOVCircle then
+            AimbotFOVCircle = CreateObject("Circle", {
+                Thickness = 1,
+                NumSides = 60,
+                Filled = false,
+                Transparency = 0.5,
+                Color = Color3.new(1, 0.5, 0),
+            })
+        end
+
+        AimbotFOVCircle.Visible = true
+        AimbotFOVCircle.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+        AimbotFOVCircle.Radius = AimbotState.FOV
     end
 end
 
@@ -366,6 +485,7 @@ end)
 RunService.RenderStepped:Connect(function()
     UpdatePlayerESP()
     UpdateEntityESP()
+    UpdateAimbot()
     UpdateFOV()
 end)
 
@@ -420,4 +540,37 @@ SilentAimGroup:AddSlider("AimFOV", {
     Max = 500,
     Rounding = 0,
     Callback = function(v) SilentAimState.FOV = v end
+})
+
+AimbotGroup:AddToggle("AimbotEnabled", { Text = "Enable Aimbot", Default = false, Callback = function(v) AimbotState.Enabled = v end })
+AimbotGroup:AddToggle("AimbotDrawFOV", { Text = "Draw Aimbot FOV", Default = false, Callback = function(v) AimbotState.DrawFOV = v end })
+AimbotGroup:AddDropdown("AimbotKey", {
+    Text = "Aimbot Key",
+    Values = {"MouseButton2", "MouseButton1", "E", "Q"},
+    Default = "MouseButton2",
+    Multi = false,
+    Callback = function(v) AimbotState.Key = v end
+})
+AimbotGroup:AddDropdown("AimbotPart", {
+    Text = "Target Part",
+    Values = {"Head", "HumanoidRootPart", "UpperTorso", "Torso", "LowerTorso"},
+    Default = "Head",
+    Multi = false,
+    Callback = function(v) AimbotState.TargetPart = v end
+})
+AimbotGroup:AddSlider("AimbotFOV", {
+    Text = "Aimbot FOV",
+    Default = 150,
+    Min = 10,
+    Max = 500,
+    Rounding = 0,
+    Callback = function(v) AimbotState.FOV = v end
+})
+AimbotGroup:AddSlider("AimbotSmooth", {
+    Text = "Smoothness",
+    Default = 25,
+    Min = 1,
+    Max = 100,
+    Rounding = 0,
+    Callback = function(v) AimbotState.Smoothness = v / 100 end
 })
