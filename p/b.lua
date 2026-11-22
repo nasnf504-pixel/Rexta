@@ -25,12 +25,12 @@ for _, obj in next, getgc(true) do
         if islclosure and not islclosure(obj) then
             continue
         end
-        
+
         local success, consts = pcall(getconstants, obj)
         if not success or type(consts) ~= "table" then
             continue
         end
-        
+
         local hasWalkSpeed = false
         for _, c in next, consts do
             if c == "WalkSpeed" then
@@ -38,29 +38,29 @@ for _, obj in next, getgc(true) do
                 break
             end
         end
-        
+
         if hasWalkSpeed then
             local ups = getupvalues(obj)
             local banTable = ups[bannedTableUpvalue]
-            
+
             if type(banTable) == "table" then
                 local selfIdx, valIdx
                 for k, v in next, banTable do
                     if type(k) == "number" then
-                        if v == banTable then selfIdx = k 
+                        if v == banTable then selfIdx = k
                         elseif type(v) == "number" then valIdx = k end
                     end
                 end
-                
+
                 if selfIdx and valIdx then
                     local rawset = rawset
                     local originalTable = table.clone(banTable)
-                    
+
                     setmetatable(banTable, {
                         __index = originalTable,
                         __newindex = function(t, k, v)
                             if type(v) == "table" then
-                                if v[5] or v[4] then return end 
+                                if v[5] or v[4] then return end
                             end
                             rawset(originalTable, k, v)
                         end
