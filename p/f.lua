@@ -1,11 +1,27 @@
 local cloneref = cloneref or function(x) return x end
 local clonefunction = clonefunction or function(f) return f end
 
-local isScriptable = clonefunction(isscriptable)
-local setScriptable = clonefunction(setscriptable)
-local setScriptableCache = {}
-
 local textService = cloneref(game:GetService("TextService"))
+local coreGui = cloneref(game:GetService("CoreGui"))
+
+local function resolveGuiParent(localPlayer)
+    if gethui then
+        local ok, hui = pcall(gethui)
+        if ok and hui then
+            return hui
+        end
+    end
+    local okCore = pcall(function()
+        return coreGui.Name
+    end)
+    if okCore then
+        return coreGui
+    end
+    if localPlayer then
+        return localPlayer:FindFirstChildOfClass("PlayerGui") or localPlayer:WaitForChild("PlayerGui", 5)
+    end
+    return nil
+end
 
 local drawing = {
     Fonts = {
@@ -29,15 +45,12 @@ local _mathmax = clonefunction(renv.math.max)
 local _setmetatable = clonefunction(renv.setmetatable)
 local _stringformat = clonefunction(renv.string.format)
 local _typeof = clonefunction(renv.typeof)
-local _taskspawn = clonefunction(renv.task.spawn)
 local _udimnew = clonefunction(renv.UDim.new)
 local _udim2fromoffset = clonefunction(renv.UDim2.fromOffset)
 local _udim2new = clonefunction(renv.UDim2.new)
 local _vector2new = clonefunction(renv.Vector2.new)
 local _destroy = clonefunction(game.Destroy)
 local _gettextboundsasync = clonefunction(textService.GetTextBoundsAsync)
-local _httpget = clonefunction(game.HttpGet)
-local _writecustomasset = writecustomasset and clonefunction(writecustomasset)
 local _protectinstance = protectinstance and clonefunction(protectinstance)
 
 local function create(className, properties, children)
@@ -48,18 +61,22 @@ local function create(className, properties, children)
         end
     end
     if children then
-        for i, v in children do
+        for _, v in children do
             v.Parent = inst
         end
     end
     if _protectinstance then
-        _protectinstance(inst)
+        pcall(_protectinstance, inst)
     end
-    inst.Parent = properties.Parent
+    if properties.Parent ~= nil then
+        pcall(function()
+            inst.Parent = properties.Parent
+        end)
+    end
     return inst
 end
 
-do
+pcall(function()
     local fonts = {
         Font.new("rbxasset://fonts/families/Arial.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
         Font.new("rbxasset://fonts/families/HighwayGothic.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal),
@@ -67,22 +84,23 @@ do
         Font.new("rbxasset://fonts/families/Ubuntu.json", Enum.FontWeight.Regular, Enum.FontStyle.Normal)
     }
 
-    for i, v in fonts do
-        game:GetService("TextService"):GetTextBoundsAsync(create("GetTextBoundsParams", {
+    for _, v in fonts do
+        _gettextboundsasync(textService, create("GetTextBoundsParams", {
             Text = "Hi",
             Size = 12,
             Font = v,
             Width = huge
         }))
     end
-end
+end)
 
 do
+    local guiRoot = resolveGuiParent(nil)
     local drawingDirectory = create("ScreenGui", {
         DisplayOrder = 15,
         IgnoreGuiInset = true,
         Name = "drawingDirectory",
-        Parent = gethui(),
+        Parent = guiRoot,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     })
 
@@ -118,7 +136,7 @@ do
                     ZIndex = 0
                 },
                 _frame = create("Frame", {
-                    Name = id,
+                    Name = tostring(id),
                     AnchorPoint = _vector2new(0.5, 0.5),
                     BackgroundColor3 = _color3new(),
                     BorderSizePixel = 0,
@@ -181,7 +199,7 @@ do
         function line:Destroy()
             cache[self._id] = nil
             self.__OBJECT_EXISTS = false
-            _destroy(self._frame)
+            pcall(_destroy, self._frame)
         end
 
         function line:_updatePosition()
@@ -215,7 +233,7 @@ do
                     ZIndex = 0
                 },
                 _frame = create("Frame", {
-                    Name = id,
+                    Name = tostring(id),
                     AnchorPoint = _vector2new(0.5, 0.5),
                     BackgroundColor3 = _color3new(),
                     BackgroundTransparency = 1,
@@ -293,7 +311,7 @@ do
         function circle:Destroy()
             cache[self._id] = nil
             self.__OBJECT_EXISTS = false
-            _destroy(self._frame)
+            pcall(_destroy, self._frame)
         end
 
         function circle:_updateRadius()
@@ -338,7 +356,7 @@ do
                     ZIndex = 0
                 },
                 _frame = create("TextLabel", {
-                    Name = id,
+                    Name = tostring(id),
                     BackgroundTransparency = 1,
                     FontFace = enumToFont[0],
                     Parent = drawingDirectory,
@@ -421,17 +439,19 @@ do
         function text:Destroy()
             cache[self._id] = nil
             self.__OBJECT_EXISTS = false
-            _destroy(self._frame)
+            pcall(_destroy, self._frame)
         end
 
         function text:_updateTextBounds()
             local props = self._properties
-            props.TextBounds = _gettextboundsasync(textService, create("GetTextBoundsParams", {
-                Text = props.Text,
-                Size = props.Size,
-                Font = enumToFont[props.Font],
-                Width = huge
-            }))
+            pcall(function()
+                props.TextBounds = _gettextboundsasync(textService, create("GetTextBoundsParams", {
+                    Text = props.Text,
+                    Size = props.Size,
+                    Font = enumToFont[props.Font],
+                    Width = huge
+                }))
+            end)
         end
 
         text.Remove = text.Destroy
@@ -459,6 +479,7 @@ do
                     ZIndex = 0
                 },
                 _frame = create("Frame", {
+                    Name = tostring(id),
                     BackgroundColor3 = _color3new(),
                     BackgroundTransparency = 1,
                     BorderSizePixel = 0,
@@ -532,7 +553,7 @@ do
         function square:Destroy()
             cache[self._id] = nil
             self.__OBJECT_EXISTS = false
-            _destroy(self._frame)
+            pcall(_destroy, self._frame)
         end
 
         function square:_updateScale()
@@ -551,7 +572,7 @@ do
     end)
 
     drawing.clear = newcclosure(function()
-        for i, v in cache do
+        for _, v in cache do
             if v.__OBJECT_EXISTS then
                 v:Destroy()
             end
@@ -586,7 +607,25 @@ end)
 genv.drawingLoaded = true
 
 local repo = "https://raw.githubusercontent.com/deividcomsono/Obsidian/main/"
-local Library = loadstring(game:HttpGet(repo .. "Library.lua"))()
+local libOk, libSrc = pcall(function()
+    return game:HttpGet(repo .. "Library.lua")
+end)
+if not libOk or type(libSrc) ~= "string" or libSrc == "" then
+    warn("Rexta: failed to download Obsidian Library.lua")
+    return
+end
+
+local libChunk, loadErr = loadstring(libSrc)
+if not libChunk then
+    warn("Rexta: failed to compile Obsidian Library.lua: " .. tostring(loadErr))
+    return
+end
+
+local runLibOk, Library = pcall(libChunk)
+if not runLibOk or type(Library) ~= "table" or type(Library.CreateWindow) ~= "function" then
+    warn("Rexta: Obsidian Library returned invalid object")
+    return
+end
 
 local Window = Library:CreateWindow({
     Title = "Rexta",
@@ -608,10 +647,10 @@ local CrateGroup = Tabs.Visuals:AddLeftGroupbox("Crates & Loot")
 local TargetVisualGroup = Tabs.Visuals:AddRightGroupbox("Target & Hit Visuals")
 local SilentAimGroup = Tabs.Combat:AddLeftGroupbox("Silent Aim")
 
-local Workspace = cloneref and cloneref(workspace) or workspace
-local Players = cloneref and cloneref(game:GetService("Players")) or game:GetService("Players")
-local RunService = cloneref and cloneref(game:GetService("RunService")) or game:GetService("RunService")
-local UserInputService = cloneref and cloneref(game:GetService("UserInputService")) or game:GetService("UserInputService")
+local Workspace = cloneref(workspace)
+local Players = cloneref(game:GetService("Players"))
+local RunService = cloneref(game:GetService("RunService"))
+local UserInputService = cloneref(game:GetService("UserInputService"))
 local Camera = Workspace.CurrentCamera
 local LocalPlayer = Players.LocalPlayer
 local Drawing = Drawing
@@ -678,7 +717,6 @@ local PlayerObjects = {}
 local EntityObjects = {}
 local FOVCircle = nil
 local HitmarkerLines = {}
-local TargetHudGui = nil
 local TargetHudCard = nil
 
 local function CreateObject(className, properties)
@@ -704,7 +742,7 @@ local function IsEnemyPlayer(plr)
     if not PlayerESPState.TeamCheck then
         return true
     end
-    if LocalPlayer.Team and plr.Team then
+    if LocalPlayer and LocalPlayer.Team and plr.Team then
         return LocalPlayer.Team ~= plr.Team
     end
     return true
@@ -950,12 +988,13 @@ local function EnsureTargetHud()
         return TargetHudCard
     end
 
-    local ok = pcall(function()
+    local ok, createdCard = pcall(function()
+        local guiRoot = resolveGuiParent(LocalPlayer)
         local sg = create("ScreenGui", {
             Name = "RextaTargetHud",
             DisplayOrder = 16,
             ResetOnSpawn = false,
-            Parent = gethui(),
+            Parent = guiRoot,
             ZIndexBehavior = Enum.ZIndexBehavior.Sibling
         })
 
@@ -1033,11 +1072,14 @@ local function EnsureTargetHud()
             end
         end)
 
-        TargetHudGui = sg
-        TargetHudCard = card
+        return card
     end)
 
-    return ok and TargetHudCard or nil
+    if ok and createdCard then
+        TargetHudCard = createdCard
+        return TargetHudCard
+    end
+    return nil
 end
 
 local function UpdateTargetHud()
@@ -1297,24 +1339,26 @@ local function UpdateFOV()
     end
 end
 
-local oldIndex
-oldIndex = hookmetamethod(game, "__index", function(t, k)
-    if not checkcaller() and t == LocalPlayer and k == "GetMouse" then
-        if SilentAimState.Enabled then
-            local targetPart = GetClosestTarget()
-            if targetPart and Camera then
-                return function()
-                    return {
-                        Hit = CFrame.new(targetPart.Position),
-                        Target = targetPart,
-                        UnitRay = Ray.new(Camera.CFrame.Position, (targetPart.Position - Camera.CFrame.Position).Unit)
-                    }
+if hookmetamethod and newcclosure then
+    local oldIndex
+    oldIndex = hookmetamethod(game, "__index", newcclosure(function(t, k)
+        if not checkcaller() and t == LocalPlayer and k == "GetMouse" then
+            if SilentAimState.Enabled then
+                local targetPart = GetClosestTarget()
+                if targetPart and Camera then
+                    return function()
+                        return {
+                            Hit = CFrame.new(targetPart.Position),
+                            Target = targetPart,
+                            UnitRay = Ray.new(Camera.CFrame.Position, (targetPart.Position - Camera.CFrame.Position).Unit)
+                        }
+                    end
                 end
             end
         end
-    end
-    return oldIndex(t, k)
-end)
+        return oldIndex(t, k)
+    end))
+end
 
 RunService.RenderStepped:Connect(function()
     UpdatePlayerESP()
